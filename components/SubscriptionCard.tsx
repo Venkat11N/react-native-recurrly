@@ -62,7 +62,6 @@ const SubscriptionCard = ({ name, price, currency, icon, billing, color, categor
           </View>
         </View>
       )}
-      {/*  */}
     </Pressable>
   )
 }
