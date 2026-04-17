@@ -78,6 +78,7 @@ export default function App() {
             onPress={() => setExpandedSubscriptioinId((currentId) => (currentId === item.id ? null : item.id))}
           />
           )}
+          // 
           extraData={expandedSubscriptionId}
           ItemSeparatorComponent={() => <View className="h-4" />}
           showsVerticalScrollIndicator={false}
