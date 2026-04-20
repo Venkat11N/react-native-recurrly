@@ -6,8 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "recurrly",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
@@ -39,20 +38,25 @@
           }
         }
       ],
-      ["expo-font", {
-        "fonts": [
-          "./assets/fonts/PlusJakartaSans-Regular.ttf",
-          "./assets/fonts/PlusJakartaSans-Bold.ttf",
-          "./assets/fonts/PlusJakartaSans-Medium.ttf",
-          "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
-          "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
-          "./assets/fonts/PlusJakartaSans-ExtraBold.ttf",
-          "./assets/fonts/PlusJakarataSans-Light.ttf"
-        ]}]
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/PlusJakartaSans-Regular.ttf",
+            "./assets/fonts/PlusJakartaSans-Bold.ttf",
+            "./assets/fonts/PlusJakartaSans-Medium.ttf",
+            "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
+            "./assets/fonts/PlusJakartaSans-SemiBold.ttf",
+            "./assets/fonts/PlusJakartaSans-ExtraBold.ttf",
+            "./assets/fonts/PlusJakarataSans-Light.ttf"
+          ]
+        }
+      ],
+      "@clerk/expo",
+      "expo-secure-store"
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     }
   }
 }
