@@ -31,26 +31,22 @@ export default function SignIn() {
     if (!validateEmail(emailAddress)) {
       return "Please enter a valid email address";
     }
-    if (!password.trim()) {
+    if (!password) {
       return "Password is required";
     }
-    if (password.trim().length < 8) {
+    if (password.length < 8) {
       return "Password must be at least 8 characters";
     }
     return null;
   };
 
   const handleSignIn = async () => {
-    console.log("=== SIGN IN BUTTON PRESSED ===");
-
     if (!signIn) {
-      console.warn("Clerk signIn resource is not ready. Ignoring press.");
       return;
     }
 
     const validationError = validateForm();
     if (validationError) {
-      console.log("Validation failed:", validationError);
       setError(validationError);
       return;
     }
@@ -59,13 +55,10 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
-      console.log("Attempting signIn.create...");
       const result = await signIn.create({
         identifier: emailAddress,
         password,
       });
-
-      console.log("Sign-in result:", result);
 
       if ((result as any)?.error) {
         throw { errors: (result as any).error };
@@ -77,19 +70,12 @@ export default function SignIn() {
       const sessionId = result?.createdSessionId || signIn.createdSessionId;
 
       if (status === "complete") {
-        console.log("Sign in successful, setting active session...");
         await setActive({ session: sessionId });
-        console.log("Navigating to tabs...");
         router.replace("/(tabs)");
       } else {
-        console.log("Sign in requires further action, status:", status);
         setError("Additional verification required.");
       }
     } catch (err: any) {
-      console.error(
-        "Sign in error:",
-        err.errors ? JSON.stringify(err.errors, null, 2) : err.message,
-      );
       setError(
         err.errors?.[0]?.longMessage ||
           err.message ||

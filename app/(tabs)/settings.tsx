@@ -2,8 +2,8 @@ import images from "@/constants/images";
 import { useClerk, useUser } from "@clerk/expo";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
-import React from "react";
-import { Image, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaView);
@@ -11,6 +11,19 @@ const SafeAreaView = styled(RNSafeAreaView);
 const Settings = () => {
   const { signOut } = useClerk();
   const { user } = useUser();
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await signOut();
+    } catch (error) {
+      Alert.alert("Error", "Failed to sign out. Please try again.");
+      console.error("Sign out error:", error);
+    } finally {
+      setIsSigningOut(false);
+    }
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background p-5">
@@ -20,7 +33,7 @@ const Settings = () => {
       <View className="bg-card p-4 rounded-xl mb-4">
         <View className="flex-row items-center mb-4">
           <Image
-            source={{ uri: user?.imageUrl || images.avatar }}
+            source={user?.imageUrl ? { uri: user.imageUrl } : images.avatar}
             className="w-16 h-16 rounded-full mr-4"
           />
           <View>
@@ -55,10 +68,13 @@ const Settings = () => {
 
       {/* Sign Out Button */}
       <TouchableOpacity
-        onPress={() => signOut()}
+        onPress={handleSignOut}
+        disabled={isSigningOut}
         className="bg-red-500 p-4 rounded-xl"
       >
-        <Text className="text-white text-center font-semibold">Sign Out</Text>
+        <Text className="text-white text-center font-semibold">
+          {isSigningOut ? "Signing out..." : "Sign Out"}
+        </Text>
       </TouchableOpacity>
     </SafeAreaView>
   );

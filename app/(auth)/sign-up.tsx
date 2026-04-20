@@ -42,16 +42,12 @@ export default function SignUp() {
   };
 
   const handleSignUp = async () => {
-    console.log("=== SIGN UP BUTTON PRESSED ===");
-
     if (!signUp) {
-      console.warn("Clerk signUp resource is not ready. Ignoring press.");
       return;
     }
 
     const validationError = validateForm();
     if (validationError) {
-      console.log("Validation failed:", validationError);
       setError(validationError);
       return;
     }
@@ -61,36 +57,24 @@ export default function SignUp() {
 
     try {
       // Create the user account
-      console.log("Attempting signUp.password...");
       const result = await signUp.password({
         emailAddress,
         password,
       });
-
-      console.log("Sign up result:", result);
 
       if ((result as any)?.error) {
         throw { errors: (result as any).error };
       }
 
       // Account created successfully, send verification email
-      console.log("Account created. Sending verification email...");
       const emailResult = await (signUp as any).verifications.sendEmailCode();
-      console.log("Email verification result:", emailResult);
 
       if ((emailResult as any)?.error) {
-        console.error("Failed to send verification code:", emailResult.error);
+        setError("Failed to send verification code. Please try again.");
       } else {
-        console.log("Verification code sent successfully to:", emailAddress);
+        setNeedsVerification(true);
       }
-
-      setNeedsVerification(true);
-      console.log("Account created, showing verification screen");
     } catch (err: any) {
-      console.error(
-        "Sign up error:",
-        err.errors ? JSON.stringify(err.errors, null, 2) : err.message,
-      );
       const firstError = err.errors && err.errors[0];
       if (firstError && firstError.code === "form_identifier_exists") {
         setError(
@@ -110,9 +94,7 @@ export default function SignUp() {
   };
 
   const handleVerification = async () => {
-    console.log("=== VERIFY BUTTON PRESSED ===");
     if (!signUp) {
-      console.warn("Clerk signUp resource is not ready. Ignoring press.");
       return;
     }
 
@@ -120,36 +102,26 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
-      console.log("Attempting email verification...");
       const result = await (signUp as any).verifications.verifyEmailCode({
         code: verificationCode,
       });
-
-      console.log("Verification result:", result);
 
       if ((result as any)?.error) {
         throw { errors: (result as any).error };
       }
 
       // Verification successful - manually activate the session
-      console.log("Verification successful, setting active session...");
       const status = (result as any)?.status || signUp.status;
       const sessionId =
         (result as any)?.createdSessionId || signUp.createdSessionId;
 
       if (status === "complete" && sessionId) {
         await setActive({ session: sessionId });
-        console.log("Session activated, navigating to tabs...");
         router.replace("/(tabs)");
       } else {
-        console.log("Verification status:", status, "Session ID:", sessionId);
         setError("Verification failed. Please try again.");
       }
     } catch (err: any) {
-      console.error(
-        "Verification error:",
-        err.errors ? JSON.stringify(err.errors, null, 2) : err.message,
-      );
       setError(
         err.errors?.[0]?.longMessage ||
           err.errors?.[0]?.message ||

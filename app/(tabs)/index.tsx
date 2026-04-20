@@ -25,7 +25,7 @@ export default function App() {
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const router = useRouter();
-  const [expandedSubscriptionId, setExpandedSubscriptioinId] = useState<
+  const [expandedSubscriptionId, setExpandedSubscriptionId] = useState<
     string | null
   >(null);
 
@@ -46,7 +46,9 @@ export default function App() {
             <View className="home-header">
               <View className="home-user">
                 <Image
-                  source={{ uri: user?.imageUrl || images.avatar }}
+                  source={
+                    user?.imageUrl ? { uri: user.imageUrl } : images.avatar
+                  }
                   className="home-avatar"
                 />
                 <Text className="home-user-name">
@@ -98,7 +100,7 @@ export default function App() {
             {...item}
             expanded={expandedSubscriptionId === item.id}
             onPress={() =>
-              setExpandedSubscriptioinId((currentId) =>
+              setExpandedSubscriptionId((currentId) =>
                 currentId === item.id ? null : item.id,
               )
             }
