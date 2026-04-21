@@ -1,3 +1,4 @@
+import { SubscriptionsProvider } from "@/context/SubscriptionsContext";
 import "@/global.css";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
@@ -51,17 +52,19 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <PostHogProvider
-      apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY!}
-      options={{
-        host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-        flushAt: 1,
-        flushInterval: 10000,
-      }}
-    >
-      <ClerkLayout>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ClerkLayout>
-    </PostHogProvider>
+    <SubscriptionsProvider>
+      <PostHogProvider
+        apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY!}
+        options={{
+          host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+          flushAt: 1,
+          flushInterval: 10000,
+        }}
+      >
+        <ClerkLayout>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ClerkLayout>
+      </PostHogProvider>
+    </SubscriptionsProvider>
   );
 }
