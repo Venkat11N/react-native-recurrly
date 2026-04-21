@@ -2,10 +2,10 @@ import ListHeading from "@/components/ListHeading";
 import SubscriptionCard from "@/components/SubscriptionCard";
 import UpcomingSubscriptionCard from "@/components/UpcomingSubscriptionCard";
 import {
-  HOME_BALANCE,
-  HOME_SUBSCRIPTIONS,
-  HOME_USER,
-  UPCOMING_SUBSCRIPTIONS,
+    HOME_BALANCE,
+    HOME_SUBSCRIPTIONS,
+    HOME_USER,
+    UPCOMING_SUBSCRIPTIONS,
 } from "@/constants/data";
 import { icons } from "@/constants/icons";
 import images from "@/constants/images";
@@ -14,6 +14,7 @@ import { useAuth, useUser } from "@clerk/expo";
 import dayjs from "dayjs";
 import { useRouter } from "expo-router";
 import { styled } from "nativewind";
+import { usePostHog } from "posthog-react-native";
 import React, { useEffect, useState } from "react";
 import { FlatList, Image, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
@@ -25,15 +26,32 @@ export default function App() {
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
   const router = useRouter();
+  const posthog = usePostHog();
   const [expandedSubscriptionId, setExpandedSubscriptionId] = useState<
     string | null
   >(null);
+
+  useEffect(() => {
+    posthog?.screen("Home");
+  }, [posthog]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace("/(auth)/sign-in");
     }
   }, [isLoaded, isSignedIn, router]);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user?.primaryEmailAddress?.emailAddress) {
+      const properties: Record<string, string> = {
+        email: user.primaryEmailAddress.emailAddress,
+      };
+      if (user.firstName && user.lastName) {
+        properties.name = `${user.firstName} ${user.lastName}`;
+      }
+      posthog?.identify(user.primaryEmailAddress.emailAddress, properties);
+    }
+  }, [isLoaded, isSignedIn, user, posthog]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -99,11 +117,15 @@ export default function App() {
           <SubscriptionCard
             {...item}
             expanded={expandedSubscriptionId === item.id}
-            onPress={() =>
+            onPress={() => {
+              posthog?.capture("subscription_card_tapped", {
+                subscription_id: item.id,
+                subscription_name: item.name,
+              });
               setExpandedSubscriptionId((currentId) =>
                 currentId === item.id ? null : item.id,
-              )
-            }
+              );
+            }}
           />
         )}
         extraData={expandedSubscriptionId}

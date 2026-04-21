@@ -1,8 +1,10 @@
 import images from "@/constants/images";
-import { useClerk, useUser } from "@clerk/expo";
+import { useAuth, useClerk, useUser } from "@clerk/expo";
 import dayjs from "dayjs";
+import { useRouter } from "expo-router";
 import { styled } from "nativewind";
-import React, { useState } from "react";
+import { usePostHog } from "posthog-react-native";
+import React, { useEffect, useState } from "react";
 import { Alert, Image, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
@@ -11,19 +13,36 @@ const SafeAreaView = styled(RNSafeAreaView);
 const Settings = () => {
   const { signOut } = useClerk();
   const { user } = useUser();
+  const { isLoaded, isSignedIn } = useAuth();
+  const router = useRouter();
+  const posthog = usePostHog();
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  useEffect(() => {
+    posthog?.screen("Settings");
+  }, [posthog]);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
     try {
+      posthog?.capture("sign_out_attempted");
       await signOut();
+      posthog?.capture("sign_out_success");
+      router.replace("/(auth)/sign-in");
     } catch (error) {
+      posthog?.capture("sign_out_failed", {
+        error: (error as Error).message,
+      });
       Alert.alert("Error", "Failed to sign out. Please try again.");
       console.error("Sign out error:", error);
     } finally {
       setIsSigningOut(false);
     }
   };
+
+  if (!isLoaded || !isSignedIn || isSigningOut) {
+    return null;
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-background p-5">

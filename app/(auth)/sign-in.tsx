@@ -1,16 +1,17 @@
 import { validateEmail } from "@/lib/utils";
 import { useClerk, useSignIn } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
-import { useState } from "react";
+import { usePostHog } from "posthog-react-native";
+import { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,11 +19,16 @@ export default function SignIn() {
   const { signIn } = useSignIn();
   const { setActive } = useClerk();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    posthog?.screen("Sign In");
+  }, [posthog]);
 
   const validateForm = () => {
     if (!emailAddress.trim()) {
@@ -48,6 +54,9 @@ export default function SignIn() {
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
+      posthog?.capture("sign_in_validation_failed", {
+        error: validationError,
+      });
       return;
     }
 
@@ -55,6 +64,10 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
+      posthog?.capture("sign_in_attempted", {
+        email: emailAddress,
+      });
+
       const result = await signIn.create({
         identifier: emailAddress,
         password,
@@ -70,12 +83,17 @@ export default function SignIn() {
       const sessionId = result?.createdSessionId || signIn.createdSessionId;
 
       if (status === "complete") {
+        posthog?.capture("sign_in_success");
         await setActive({ session: sessionId });
         router.replace("/(tabs)");
       } else {
         setError("Additional verification required.");
+        posthog?.capture("sign_in_requires_verification");
       }
     } catch (err: any) {
+      posthog?.capture("sign_in_failed", {
+        error: err.errors?.[0]?.longMessage || err.message,
+      });
       setError(
         err.errors?.[0]?.longMessage ||
           err.message ||

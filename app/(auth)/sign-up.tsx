@@ -1,7 +1,8 @@
 import { validateEmail } from "@/lib/utils";
 import { useClerk, useSignUp } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { usePostHog } from "posthog-react-native";
+import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +18,7 @@ export default function SignUp() {
   const { signUp } = useSignUp();
   const { setActive } = useClerk();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +26,10 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsVerification, setNeedsVerification] = useState(false);
+
+  useEffect(() => {
+    posthog?.screen(needsVerification ? "Verify Email" : "Sign Up");
+  }, [posthog, needsVerification]);
 
   const validateForm = () => {
     if (!emailAddress.trim()) {
@@ -49,6 +55,9 @@ export default function SignUp() {
     const validationError = validateForm();
     if (validationError) {
       setError(validationError);
+      posthog?.capture("sign_up_validation_failed", {
+        error: validationError,
+      });
       return;
     }
 
@@ -56,6 +65,10 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
+      posthog?.capture("sign_up_attempted", {
+        email: emailAddress,
+      });
+
       // Create the user account
       const result = await signUp.password({
         emailAddress,
@@ -70,17 +83,23 @@ export default function SignUp() {
       const emailResult = await (signUp as any).verifications.sendEmailCode();
 
       if ((emailResult as any)?.error) {
+        posthog?.capture("verification_email_failed");
         setError("Failed to send verification code. Please try again.");
       } else {
+        posthog?.capture("verification_email_sent");
         setNeedsVerification(true);
       }
     } catch (err: any) {
       const firstError = err.errors && err.errors[0];
       if (firstError && firstError.code === "form_identifier_exists") {
+        posthog?.capture("sign_up_email_exists");
         setError(
           "This email is already registered. You can sign in with your existing account.",
         );
       } else {
+        posthog?.capture("sign_up_failed", {
+          error: firstError?.longMessage || firstError?.message || err.message,
+        });
         setError(
           firstError?.longMessage ||
             firstError?.message ||
@@ -102,6 +121,8 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
+      posthog?.capture("verification_code_attempted");
+
       const result = await (signUp as any).verifications.verifyEmailCode({
         code: verificationCode,
       });
@@ -116,12 +137,20 @@ export default function SignUp() {
         (result as any)?.createdSessionId || signUp.createdSessionId;
 
       if (status === "complete" && sessionId) {
+        posthog?.capture("verification_success");
         await setActive({ session: sessionId });
         router.replace("/(tabs)");
       } else {
+        posthog?.capture("verification_failed");
         setError("Verification failed. Please try again.");
       }
     } catch (err: any) {
+      posthog?.capture("verification_error", {
+        error:
+          err.errors?.[0]?.longMessage ||
+          err.errors?.[0]?.message ||
+          err.message,
+      });
       setError(
         err.errors?.[0]?.longMessage ||
           err.errors?.[0]?.message ||
