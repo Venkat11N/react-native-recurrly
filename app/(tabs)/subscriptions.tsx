@@ -40,14 +40,10 @@ export default function Subscriptions() {
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
-    if (isLoaded && isSignedIn && user?.primaryEmailAddress?.emailAddress) {
-      const properties: Record<string, string> = {
-        email: user.primaryEmailAddress.emailAddress,
-      };
-      if (user.firstName && user.lastName) {
-        properties.name = `${user.firstName} ${user.lastName}`;
-      }
-      posthog?.identify(user.primaryEmailAddress.emailAddress, properties);
+    if (isLoaded && isSignedIn && user?.id) {
+      posthog?.identify(user.id, {
+        user_id: user.id,
+      });
     }
   }, [isLoaded, isSignedIn, user, posthog]);
 
@@ -107,19 +103,19 @@ export default function Subscriptions() {
                 {...item}
                 expanded={expandedSubscriptionId === item.id}
                 onPress={() => {
-                  const isExpanding = expandedSubscriptionId !== item.id;
-                  posthog?.capture(
-                    isExpanding
-                      ? "subscription_expanded"
-                      : "subscription_collapsed",
-                    {
-                      subscription_id: item.id,
-                      subscription_name: item.name,
-                    },
-                  );
-                  setExpandedSubscriptionId((currentId) =>
-                    currentId === item.id ? null : item.id,
-                  );
+                  setExpandedSubscriptionId((currentId) => {
+                    const isExpanding = currentId !== item.id;
+                    posthog?.capture(
+                      isExpanding
+                        ? "subscription_expanded"
+                        : "subscription_collapsed",
+                      {
+                        subscription_id: item.id,
+                        subscription_name: item.name,
+                      },
+                    );
+                    return currentId === item.id ? null : item.id;
+                  });
                 }}
               />
             )}

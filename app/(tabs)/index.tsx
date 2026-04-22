@@ -5,8 +5,7 @@ import UpcomingSubscriptionCard from "@/components/UpcomingSubscriptionCard";
 import {
     HOME_BALANCE,
     HOME_USER,
-    UPCOMING_SUBSCRIPTIONS,
-    type Subscription,
+    type Subscription
 } from "@/constants/data";
 import { icons } from "@/constants/icons";
 import images from "@/constants/images";
@@ -46,20 +45,36 @@ export default function App() {
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
-    if (isLoaded && isSignedIn && user?.primaryEmailAddress?.emailAddress) {
-      const properties: Record<string, string> = {
-        email: user.primaryEmailAddress.emailAddress,
-      };
-      if (user.firstName && user.lastName) {
-        properties.name = `${user.firstName} ${user.lastName}`;
-      }
-      posthog?.identify(user.primaryEmailAddress.emailAddress, properties);
+    if (isLoaded && isSignedIn && user?.id) {
+      posthog?.identify(user.id, {
+        user_id: user.id,
+      });
     }
   }, [isLoaded, isSignedIn, user, posthog]);
 
   const handleSubscriptionCreated = (newSubscription: Subscription) => {
     addSubscription(newSubscription);
   };
+
+  const upcomingSubscriptions = subscriptions
+    .filter((sub) => sub.status === "active")
+    .map((sub) => {
+      const renewalDate = new Date(sub.renewalDate);
+      const today = new Date();
+      const daysLeft = Math.ceil(
+        (renewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      return {
+        id: sub.id,
+        icon: sub.icon,
+        name: sub.name,
+        price: sub.price,
+        currency: sub.currency,
+        daysLeft: daysLeft > 0 ? daysLeft : 0,
+      };
+    })
+    .filter((sub) => sub.daysLeft <= 7)
+    .sort((a, b) => a.daysLeft - b.daysLeft);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -104,7 +119,7 @@ export default function App() {
               <ListHeading title="Upcoming" />
 
               <FlatList
-                data={UPCOMING_SUBSCRIPTIONS}
+                data={upcomingSubscriptions}
                 renderItem={({ item }) => (
                   <UpcomingSubscriptionCard {...item} />
                 )}
@@ -128,19 +143,19 @@ export default function App() {
             {...item}
             expanded={expandedSubscriptionId === item.id}
             onPress={() => {
-              const isExpanding = expandedSubscriptionId !== item.id;
-              posthog?.capture(
-                isExpanding
-                  ? "subscription_expanded"
-                  : "subscription_collapsed",
-                {
-                  subscription_id: item.id,
-                  subscription_name: item.name,
-                },
-              );
-              setExpandedSubscriptionId((currentId) =>
-                currentId === item.id ? null : item.id,
-              );
+              setExpandedSubscriptionId((currentId) => {
+                const isExpanding = currentId !== item.id;
+                posthog?.capture(
+                  isExpanding
+                    ? "subscription_expanded"
+                    : "subscription_collapsed",
+                  {
+                    subscription_id: item.id,
+                    subscription_name: item.name,
+                  },
+                );
+                return currentId === item.id ? null : item.id;
+              });
             }}
           />
         )}

@@ -6,14 +6,14 @@ import { styled } from "nativewind";
 import { usePostHog } from "posthog-react-native";
 import React, { useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    ScrollView,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
@@ -64,6 +64,15 @@ export default function CreateSubscriptionModal({
     if (!isFormValid) return;
 
     const priceValue = parseFloat(price);
+    const priceRegex = /^\d+(\.\d{1,2})?$/;
+
+    if (
+      !priceRegex.test(price) ||
+      !Number.isFinite(priceValue) ||
+      priceValue <= 0
+    ) {
+      return;
+    }
     const startDate = new Date().toISOString();
     let renewalDate: string;
 
@@ -93,10 +102,10 @@ export default function CreateSubscriptionModal({
 
     posthog?.capture("subscription_created", {
       subscription_name: name.trim(),
-      subscription_category: category,
+      subscription_category: category || "Other",
       subscription_frequency: frequency,
       subscription_price: priceValue,
-    })
+    });
 
     // Reset form
     setName("");
