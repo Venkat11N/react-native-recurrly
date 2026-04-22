@@ -4,14 +4,14 @@ import { Link, useRouter } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function SignUp() {
@@ -138,6 +138,9 @@ export default function SignUp() {
 
       if (status === "complete" && sessionId) {
         posthog?.capture("verification_success");
+        posthog?.capture("user_signed_in", {
+          email: emailAddress,
+        });
         await setActive({ session: sessionId });
         router.replace("/(tabs)");
       } else {

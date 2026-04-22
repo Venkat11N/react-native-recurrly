@@ -28,6 +28,9 @@ const Settings = () => {
       posthog?.capture("sign_out_attempted");
       await signOut();
       posthog?.capture("sign_out_success");
+      posthog?.capture("user_signed_out", {
+        email: user?.primaryEmailAddress?.emailAddress || "",
+      });
       router.replace("/(auth)/sign-in");
     } catch (error) {
       posthog?.capture("sign_out_failed", {

@@ -84,6 +84,9 @@ export default function SignIn() {
 
       if (status === "complete") {
         posthog?.capture("sign_in_success");
+        posthog?.capture("user_signed_in", {
+          email: emailAddress,
+        });
         await setActive({ session: sessionId });
         router.replace("/(tabs)");
       } else {
