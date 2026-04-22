@@ -1,16 +1,137 @@
-import { View, Text } from 'react-native'
-import React from 'react'
-import { SafeAreaView as RNSafeAreaView} from 'react-native-safe-area-context';
-import {styled} from "nativewind"
+import SubscriptionCard from "@/components/SubscriptionCard";
+import { useSubscriptions } from "@/context/SubscriptionsContext";
+import { useAuth, useUser } from "@clerk/expo";
+import { useRouter } from "expo-router";
+import { styled } from "nativewind";
+import { usePostHog } from "posthog-react-native";
+import React, { useEffect, useState } from "react";
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
-const Subscriptions = () => {
-  return (
-    <SafeAreaView className='flex-1 bg-background p-5'>
-      <Text>Subscriptions</Text>
-    </SafeAreaView>
-  )
-}
+export default function Subscriptions() {
+  const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
+  const router = useRouter();
+  const posthog = usePostHog();
+  const { subscriptions } = useSubscriptions();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedSubscriptionId, setExpandedSubscriptionId] = useState<
+    string | null
+  >(null);
 
-export default Subscriptions
+  useEffect(() => {
+    posthog?.screen("Subscriptions");
+  }, [posthog]);
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace("/(auth)/sign-in");
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  useEffect(() => {
+    if (isLoaded && isSignedIn && user?.primaryEmailAddress?.emailAddress) {
+      const properties: Record<string, string> = {
+        email: user.primaryEmailAddress.emailAddress,
+      };
+      if (user.firstName && user.lastName) {
+        properties.name = `${user.firstName} ${user.lastName}`;
+      }
+      posthog?.identify(user.primaryEmailAddress.emailAddress, properties);
+    }
+  }, [isLoaded, isSignedIn, user, posthog]);
+
+  const filteredSubscriptions = subscriptions.filter(
+    (subscription) =>
+      subscription.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      subscription.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      subscription.plan.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  if (!isLoaded || !isSignedIn) {
+    return null;
+  }
+
+  return (
+    <SafeAreaView className="flex-1 bg-background">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+        className="flex-1"
+      >
+        <ScrollView
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          contentContainerClassName="p-5 pb-32"
+        >
+          <Text className="text-xl font-bold mb-6">Subscriptions</Text>
+
+          {/* Search Bar */}
+          <View className="mb-4">
+            <View className="flex-row items-center bg-card rounded-xl px-4 py-3">
+              <TextInput
+                className="flex-1 text-base"
+                placeholder="Search subscriptions..."
+                placeholderTextColor="#666666"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+            </View>
+          </View>
+
+          {/* Results Count */}
+          {searchQuery && (
+            <Text className="text-sm text-gray-500 mb-4">
+              {filteredSubscriptions.length} result
+              {filteredSubscriptions.length !== 1 ? "s" : ""} found
+            </Text>
+          )}
+
+          {/* Subscription List */}
+          <FlatList
+            data={filteredSubscriptions}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <SubscriptionCard
+                {...item}
+                expanded={expandedSubscriptionId === item.id}
+                onPress={() => {
+                  posthog?.capture("subscription_card_tapped", {
+                    subscription_id: item.id,
+                    subscription_name: item.name,
+                  });
+                  setExpandedSubscriptionId((currentId) =>
+                    currentId === item.id ? null : item.id,
+                  );
+                }}
+              />
+            )}
+            ItemSeparatorComponent={() => <View className="h-4" />}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={false}
+            keyboardShouldPersistTaps="handled"
+            ListEmptyComponent={
+              <Text className="text-center text-gray-500 mt-10">
+                {searchQuery
+                  ? "No subscriptions match your search."
+                  : "No subscriptions yet."}
+              </Text>
+            }
+            contentContainerClassName="pb-30"
+          />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}

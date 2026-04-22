@@ -1,8 +1,11 @@
+import { SubscriptionsProvider } from "@/context/SubscriptionsContext";
 import "@/global.css";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
+import { PostHogProvider } from "posthog-react-native";
+import type { ReactNode } from "react";
 import { useEffect } from "react";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
@@ -11,7 +14,7 @@ if (!publishableKey) {
   throw new Error("Add your Clerk Publishable Key to the .env file");
 }
 
-function ClerkLayout({ children }: { children: React.ReactNode }) {
+function ClerkLayout({ children }: { children: ReactNode }) {
   return (
     <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
       {children}
@@ -30,6 +33,17 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
+    async function prepare() {
+      try {
+        await SplashScreen.preventAutoHideAsync();
+      } catch (e) {
+        console.warn("Failed to prevent splash screen auto-hide:", e);
+      }
+    }
+    prepare();
+  }, []);
+
+  useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
@@ -38,8 +52,19 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <ClerkLayout>
-      <Stack screenOptions={{ headerShown: false }} />
-    </ClerkLayout>
+    <SubscriptionsProvider>
+      <PostHogProvider
+        apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY!}
+        options={{
+          host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+          flushAt: 1,
+          flushInterval: 10000,
+        }}
+      >
+        <ClerkLayout>
+          <Stack screenOptions={{ headerShown: false }} />
+        </ClerkLayout>
+      </PostHogProvider>
+    </SubscriptionsProvider>
   );
 }

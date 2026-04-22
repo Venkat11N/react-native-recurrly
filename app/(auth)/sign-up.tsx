@@ -1,7 +1,8 @@
 import { validateEmail } from "@/lib/utils";
 import { useClerk, useSignUp } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
-import React, { useState } from "react";
+import { usePostHog } from "posthog-react-native";
+import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -17,6 +18,7 @@ export default function SignUp() {
   const { signUp } = useSignUp();
   const { setActive } = useClerk();
   const router = useRouter();
+  const posthog = usePostHog();
 
   const [emailAddress, setEmailAddress] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +26,10 @@ export default function SignUp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsVerification, setNeedsVerification] = useState(false);
+
+  useEffect(() => {
+    posthog?.screen(needsVerification ? "Verify Email" : "Sign Up");
+  }, [posthog, needsVerification]);
 
   const validateForm = () => {
     if (!emailAddress.trim()) {
@@ -42,17 +48,16 @@ export default function SignUp() {
   };
 
   const handleSignUp = async () => {
-    console.log("=== SIGN UP BUTTON PRESSED ===");
-
     if (!signUp) {
-      console.warn("Clerk signUp resource is not ready. Ignoring press.");
       return;
     }
 
     const validationError = validateForm();
     if (validationError) {
-      console.log("Validation failed:", validationError);
       setError(validationError);
+      posthog?.capture("sign_up_validation_failed", {
+        error: validationError,
+      });
       return;
     }
 
@@ -60,43 +65,41 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
+      posthog?.capture("sign_up_attempted", {
+        email: emailAddress,
+      });
+
       // Create the user account
-      console.log("Attempting signUp.password...");
       const result = await signUp.password({
         emailAddress,
         password,
       });
-
-      console.log("Sign up result:", result);
 
       if ((result as any)?.error) {
         throw { errors: (result as any).error };
       }
 
       // Account created successfully, send verification email
-      console.log("Account created. Sending verification email...");
       const emailResult = await (signUp as any).verifications.sendEmailCode();
-      console.log("Email verification result:", emailResult);
 
       if ((emailResult as any)?.error) {
-        console.error("Failed to send verification code:", emailResult.error);
+        posthog?.capture("verification_email_failed");
+        setError("Failed to send verification code. Please try again.");
       } else {
-        console.log("Verification code sent successfully to:", emailAddress);
+        posthog?.capture("verification_email_sent");
+        setNeedsVerification(true);
       }
-
-      setNeedsVerification(true);
-      console.log("Account created, showing verification screen");
     } catch (err: any) {
-      console.error(
-        "Sign up error:",
-        err.errors ? JSON.stringify(err.errors, null, 2) : err.message,
-      );
       const firstError = err.errors && err.errors[0];
       if (firstError && firstError.code === "form_identifier_exists") {
+        posthog?.capture("sign_up_email_exists");
         setError(
           "This email is already registered. You can sign in with your existing account.",
         );
       } else {
+        posthog?.capture("sign_up_failed", {
+          error: firstError?.longMessage || firstError?.message || err.message,
+        });
         setError(
           firstError?.longMessage ||
             firstError?.message ||
@@ -110,9 +113,7 @@ export default function SignUp() {
   };
 
   const handleVerification = async () => {
-    console.log("=== VERIFY BUTTON PRESSED ===");
     if (!signUp) {
-      console.warn("Clerk signUp resource is not ready. Ignoring press.");
       return;
     }
 
@@ -120,36 +121,36 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
-      console.log("Attempting email verification...");
+      posthog?.capture("verification_code_attempted");
+
       const result = await (signUp as any).verifications.verifyEmailCode({
         code: verificationCode,
       });
-
-      console.log("Verification result:", result);
 
       if ((result as any)?.error) {
         throw { errors: (result as any).error };
       }
 
       // Verification successful - manually activate the session
-      console.log("Verification successful, setting active session...");
       const status = (result as any)?.status || signUp.status;
       const sessionId =
         (result as any)?.createdSessionId || signUp.createdSessionId;
 
       if (status === "complete" && sessionId) {
+        posthog?.capture("verification_success");
         await setActive({ session: sessionId });
-        console.log("Session activated, navigating to tabs...");
         router.replace("/(tabs)");
       } else {
-        console.log("Verification status:", status, "Session ID:", sessionId);
+        posthog?.capture("verification_failed");
         setError("Verification failed. Please try again.");
       }
     } catch (err: any) {
-      console.error(
-        "Verification error:",
-        err.errors ? JSON.stringify(err.errors, null, 2) : err.message,
-      );
+      posthog?.capture("verification_error", {
+        error:
+          err.errors?.[0]?.longMessage ||
+          err.errors?.[0]?.message ||
+          err.message,
+      });
       setError(
         err.errors?.[0]?.longMessage ||
           err.errors?.[0]?.message ||

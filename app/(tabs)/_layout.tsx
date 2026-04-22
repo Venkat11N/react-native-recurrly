@@ -11,18 +11,19 @@ interface TableIconProps {
   icon: any;
 }
 
-const TabLayout = () => {
-  const inserts = useSafeAreaInsets();
-
-  const TabIcon = ({ focused, icon }: TableIconProps) => {
-    return (
-      <View className="tabs-icon">
-        <View className={clsx("tabs-pill", focused && "tabs-active")}>
-          <Image source={icon} resizeMode="contain" className="tabs-glyph" />
-        </View>
+const TabIcon = ({ focused, icon }: TableIconProps) => {
+  return (
+    <View className="tabs-icon">
+      <View className={clsx("tabs-pill", focused && "tabs-active")}>
+        <Image source={icon} resizeMode="contain" className="tabs-glyph" />
       </View>
-    );
-  };
+    </View>
+  );
+};
+
+const TabLayout = () => {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -30,7 +31,7 @@ const TabLayout = () => {
         tabBarShowLabel: false,
         tabBarStyle: {
           position: "absolute",
-          bottom: Math.max(inserts.bottom, tabBar.horizontalInset),
+          bottom: Math.max(insets.bottom, tabBar.horizontalInset),
           height: tabBar.height,
           marginHorizontal: tabBar.horizontalInset,
           borderRadius: tabBar.radius,
