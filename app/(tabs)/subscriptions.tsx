@@ -6,13 +6,13 @@ import { styled } from "nativewind";
 import { usePostHog } from "posthog-react-native";
 import React, { useEffect, useState } from "react";
 import {
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
+    FlatList,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    View,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
@@ -107,10 +107,16 @@ export default function Subscriptions() {
                 {...item}
                 expanded={expandedSubscriptionId === item.id}
                 onPress={() => {
-                  posthog?.capture("subscription_card_tapped", {
-                    subscription_id: item.id,
-                    subscription_name: item.name,
-                  });
+                  const isExpanding = expandedSubscriptionId !== item.id;
+                  posthog?.capture(
+                    isExpanding
+                      ? "subscription_expanded"
+                      : "subscription_collapsed",
+                    {
+                      subscription_id: item.id,
+                      subscription_name: item.name,
+                    },
+                  );
                   setExpandedSubscriptionId((currentId) =>
                     currentId === item.id ? null : item.id,
                   );

@@ -4,9 +4,10 @@ import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { SplashScreen, Stack } from "expo-router";
-import { PostHogProvider } from "posthog-react-native";
+import { PostHogProvider, usePostHog } from "posthog-react-native";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { AppState, AppStateStatus } from "react-native";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!;
 
@@ -20,6 +21,37 @@ function ClerkLayout({ children }: { children: ReactNode }) {
       {children}
     </ClerkProvider>
   );
+}
+
+function PostHogLifecycle() {
+  const posthog = usePostHog();
+  const appState = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState: AppStateStatus) => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextAppState === "active"
+        ) {
+          posthog?.capture("application_became_active");
+        } else if (nextAppState === "background") {
+          posthog?.capture("application_background");
+        }
+        appState.current = nextAppState;
+      },
+    );
+
+    // Track application open on mount
+    posthog?.capture("application_open");
+
+    return () => {
+      subscription.remove();
+    };
+  }, [posthog]);
+
+  return null;
 }
 
 export default function RootLayout() {
@@ -62,6 +94,7 @@ export default function RootLayout() {
         }}
       >
         <ClerkLayout>
+          <PostHogLifecycle />
           <Stack screenOptions={{ headerShown: false }} />
         </ClerkLayout>
       </PostHogProvider>
