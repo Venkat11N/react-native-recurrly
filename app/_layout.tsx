@@ -26,6 +26,7 @@ function ClerkLayout({ children }: { children: ReactNode }) {
 function PostHogLifecycle() {
   const posthog = usePostHog();
   const appState = useRef(AppState.currentState);
+  const hasCapturedApplicationOpenRef = useRef(false);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -43,8 +44,11 @@ function PostHogLifecycle() {
       },
     );
 
-    // Track application open on mount
-    posthog?.capture("application_open");
+    // Track application open on mount (only once per session)
+    if (!hasCapturedApplicationOpenRef.current) {
+      posthog?.capture("application_open");
+      hasCapturedApplicationOpenRef.current = true;
+    }
 
     return () => {
       subscription.remove();
@@ -84,20 +88,20 @@ export default function RootLayout() {
   if (!fontsLoaded) return null;
 
   return (
-    <SubscriptionsProvider>
-      <PostHogProvider
-        apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY!}
-        options={{
-          host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
-          flushAt: 1,
-          flushInterval: 10000,
-        }}
-      >
-        <ClerkLayout>
+    <PostHogProvider
+      apiKey={process.env.EXPO_PUBLIC_POSTHOG_KEY?.trim()}
+      options={{
+        host: process.env.EXPO_PUBLIC_POSTHOG_HOST?.trim(),
+        flushAt: 1,
+        flushInterval: 10000,
+      }}
+    >
+      <ClerkLayout>
+        <SubscriptionsProvider>
           <PostHogLifecycle />
           <Stack screenOptions={{ headerShown: false }} />
-        </ClerkLayout>
-      </PostHogProvider>
-    </SubscriptionsProvider>
+        </SubscriptionsProvider>
+      </ClerkLayout>
+    </PostHogProvider>
   );
 }

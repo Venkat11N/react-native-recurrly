@@ -64,9 +64,7 @@ export default function SignIn() {
     setIsLoading(true);
 
     try {
-      posthog?.capture("sign_in_attempted", {
-        email: emailAddress,
-      });
+      posthog?.capture("sign_in_attempted");
 
       const result = await signIn.create({
         identifier: emailAddress,
@@ -84,10 +82,10 @@ export default function SignIn() {
 
       if (status === "complete") {
         posthog?.capture("sign_in_success");
-        posthog?.capture("user_signed_in", {
-          email: emailAddress,
-        });
         await setActive({ session: sessionId });
+        posthog?.capture("user_signed_in", {
+          signed_in: true,
+        });
         router.replace("/(tabs)");
       } else {
         setError("Additional verification required.");

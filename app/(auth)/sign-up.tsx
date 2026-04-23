@@ -65,9 +65,7 @@ export default function SignUp() {
     setIsLoading(true);
 
     try {
-      posthog?.capture("sign_up_attempted", {
-        email: emailAddress,
-      });
+      posthog?.capture("sign_up_attempted");
 
       // Create the user account
       const result = await signUp.password({
@@ -138,10 +136,10 @@ export default function SignUp() {
 
       if (status === "complete" && sessionId) {
         posthog?.capture("verification_success");
-        posthog?.capture("user_signed_in", {
-          email: emailAddress,
-        });
         await setActive({ session: sessionId });
+        posthog?.capture("user_signed_in", {
+          signed_in: true,
+        });
         router.replace("/(tabs)");
       } else {
         posthog?.capture("verification_failed");
