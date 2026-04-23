@@ -1,13 +1,24 @@
 import { Platform } from "react-native";
 
 // Use environment variable if set, otherwise use platform defaults
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL?.replace(/\s+/g, "") ||
-  (__DEV__
-    ? Platform.OS === "android"
-      ? "http://10.0.2.2:3001/api"
-      : "http://localhost:3001/api"
-    : "http://localhost:3001/api");
+const API_URL = (() => {
+  const envUrl = process.env.EXPO_PUBLIC_API_URL?.replace(/\s+/g, "");
+  if (__DEV__) {
+    return (
+      envUrl ||
+      (Platform.OS === "android"
+        ? "http://10.0.2.2:3001/api"
+        : "http://localhost:3001/api")
+    );
+  }
+  if (!envUrl) {
+    throw new Error(
+      "EXPO_PUBLIC_API_URL environment variable is required in production. " +
+        "Please set it to your backend API URL.",
+    );
+  }
+  return envUrl;
+})();
 
 console.log("API URL:", API_URL);
 console.log("Platform:", Platform.OS);

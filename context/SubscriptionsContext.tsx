@@ -65,6 +65,10 @@ export function SubscriptionsProvider({
       setLoading(true);
       setError(null);
       const token = await getToken();
+      if (!token) {
+        setError("Not authenticated");
+        return;
+      }
       const data = await getSubscriptions(token);
       setSubscriptions(data);
     } catch (err) {
@@ -85,6 +89,10 @@ export function SubscriptionsProvider({
   ) => {
     try {
       const token = await getToken();
+      if (!token) {
+        setError("Not authenticated");
+        throw new Error("Not authenticated");
+      }
       const newSubscription = await createSubscription(token, subscription);
       setSubscriptions((prev) => {
         return [newSubscription, ...prev];
@@ -104,6 +112,10 @@ export function SubscriptionsProvider({
   ) => {
     try {
       const token = await getToken();
+      if (!token) {
+        setError("Not authenticated");
+        throw new Error("Not authenticated");
+      }
       const updatedSubscription = await updateSubscription(token, id, data);
       setSubscriptions((prev) => {
         return prev.map((sub) => (sub.id === id ? updatedSubscription : sub));
@@ -119,6 +131,10 @@ export function SubscriptionsProvider({
   const removeSubscription = async (id: string) => {
     try {
       const token = await getToken();
+      if (!token) {
+        setError("Not authenticated");
+        throw new Error("Not authenticated");
+      }
       await deleteSubscription(token, id);
       setSubscriptions((prev) => prev.filter((sub) => sub.id !== id));
     } catch (err) {

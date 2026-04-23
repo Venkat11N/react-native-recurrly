@@ -54,6 +54,7 @@ export default function App() {
       await addSubscription(subscriptionData);
     } catch (error) {
       console.error("Failed to create subscription:", error);
+      throw error;
     }
   };
 
@@ -167,7 +168,7 @@ export default function App() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   ListEmptyComponent={
-                    <Text className="home_empty-state">
+                    <Text className="home-empty-state">
                       No upcoming subscriptions renewals yet.
                     </Text>
                   }

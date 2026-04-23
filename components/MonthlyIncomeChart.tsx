@@ -1,12 +1,12 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { Text, View } from "react-native";
 
 interface MonthlyIncomeChartProps {
   data: { label: string; value: number; color: string }[];
 }
 
 const MonthlyIncomeChart: React.FC<MonthlyIncomeChartProps> = ({ data }) => {
-  const maxValue = Math.max(...data.map((item) => item.value));
+  const maxValue = Math.max(...data.map((item) => item.value), 1);
   const chartHeight = 120;
 
   return (

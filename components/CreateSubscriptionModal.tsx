@@ -56,22 +56,20 @@ export default function CreateSubscriptionModal({
   const [frequency, setFrequency] = useState<"Monthly" | "Yearly">("Monthly");
   const [category, setCategory] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isFormValid = name.trim().length > 0 && parseFloat(price) > 0;
+  const priceValue = parseFloat(price);
+  const priceRegex = /^\d+(\.\d{1,2})?$/;
+  const isFormValid =
+    name.trim().length > 0 &&
+    priceRegex.test(price) &&
+    Number.isFinite(priceValue) &&
+    priceValue > 0;
 
   const handleSubmit = async () => {
-    if (!isFormValid) return;
+    if (!isFormValid || isSubmitting) return;
 
-    const priceValue = parseFloat(price);
-    const priceRegex = /^\d+(\.\d{1,2})?$/;
-
-    if (
-      !priceRegex.test(price) ||
-      !Number.isFinite(priceValue) ||
-      priceValue <= 0
-    ) {
-      return;
-    }
+    setIsSubmitting(true);
 
     let renewalDate: string;
 
@@ -109,6 +107,8 @@ export default function CreateSubscriptionModal({
     } catch (error) {
       console.error("Failed to create subscription:", error);
       alert("Failed to create subscription. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -393,9 +393,10 @@ export default function CreateSubscriptionModal({
               {/* Submit Button */}
               <TouchableOpacity
                 onPress={handleSubmit}
-                disabled={!isFormValid}
+                disabled={!isFormValid || isSubmitting}
                 style={{
-                  backgroundColor: isFormValid ? "#EA7A53" : "#CCCCCC",
+                  backgroundColor:
+                    isFormValid && !isSubmitting ? "#EA7A53" : "#CCCCCC",
                   paddingVertical: 16,
                   borderRadius: 12,
                   marginTop: 8,
