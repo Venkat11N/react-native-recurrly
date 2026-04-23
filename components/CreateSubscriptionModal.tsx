@@ -1,19 +1,17 @@
-import { Subscription } from "@/constants/data";
 import { getSubscriptionIcon } from "@/lib/utils";
-import clsx from "clsx";
 import dayjs from "dayjs";
 import { styled } from "nativewind";
 import { usePostHog } from "posthog-react-native";
 import React, { useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
 
@@ -22,7 +20,9 @@ const SafeAreaView = styled(RNSafeAreaView);
 interface CreateSubscriptionModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubscriptionCreated: (subscription: Subscription) => void;
+  onSubscriptionCreated: (
+    subscription: Omit<any, "id" | "userId" | "createdAt" | "updatedAt">,
+  ) => Promise<void>;
 }
 
 const CATEGORY_OPTIONS = [
@@ -36,16 +36,14 @@ const CATEGORY_OPTIONS = [
   "Other",
 ];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Entertainment: "#f5c542",
-  "AI Tools": "#b8d4e3",
-  "Developer Tools": "#e8def8",
-  Design: "#f5c542",
-  Productivity: "#b8e8d0",
-  Cloud: "#d4e3f5",
-  Music: "#e8d4f5",
-  Other: "#e0e0e0",
-};
+const PAYMENT_METHODS = [
+  "Credit Card",
+  "Debit Card",
+  "PayPal",
+  "Apple Pay",
+  "Google Pay",
+  "Bank Transfer",
+];
 
 export default function CreateSubscriptionModal({
   visible,
@@ -57,10 +55,11 @@ export default function CreateSubscriptionModal({
   const [price, setPrice] = useState("");
   const [frequency, setFrequency] = useState<"Monthly" | "Yearly">("Monthly");
   const [category, setCategory] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
 
   const isFormValid = name.trim().length > 0 && parseFloat(price) > 0;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!isFormValid) return;
 
     const priceValue = parseFloat(price);
@@ -73,7 +72,7 @@ export default function CreateSubscriptionModal({
     ) {
       return;
     }
-    const startDate = new Date().toISOString();
+
     let renewalDate: string;
 
     if (frequency === "Monthly") {
@@ -82,37 +81,35 @@ export default function CreateSubscriptionModal({
       renewalDate = dayjs().add(1, "year").toISOString();
     }
 
-    const newSubscription: Subscription = {
-      id: `new-${Date.now()}`,
-      icon: getSubscriptionIcon(name.trim()),
+    const subscriptionData = {
       name: name.trim(),
-      plan: "Custom",
-      category: category || "Other",
-      paymentMethod: "Card",
-      status: "active",
-      startDate: dayjs().toISOString(),
       price: priceValue,
       currency: "USD",
-      billing: frequency as "Monthly" | "Yearly",
+      frequency: frequency as "Monthly" | "Yearly",
+      category: category || "Other",
+      icon: getSubscriptionIcon(name.trim()),
       renewalDate,
-      color: CATEGORY_COLORS[category] || CATEGORY_COLORS.Other,
+      startDate: dayjs().toISOString(),
+      paymentMethod: paymentMethod || "Credit Card",
     };
 
-    onSubscriptionCreated(newSubscription);
-
-    posthog?.capture("subscription_created", {
-      subscription_name: name.trim(),
-      subscription_category: category || "Other",
-      subscription_frequency: frequency,
-      subscription_price: priceValue,
-    });
-
-    // Reset form
-    setName("");
-    setPrice("");
-    setFrequency("Monthly");
-    setCategory("");
-    onClose();
+    try {
+      await onSubscriptionCreated(subscriptionData);
+      onClose();
+      setName("");
+      setPrice("");
+      setFrequency("Monthly");
+      setCategory("");
+      setPaymentMethod("");
+      posthog?.capture("subscription_created", {
+        name: subscriptionData.name,
+        price: subscriptionData.price,
+        frequency: subscriptionData.frequency,
+      });
+    } catch (error) {
+      console.error("Failed to create subscription:", error);
+      alert("Failed to create subscription. Please try again.");
+    }
   };
 
   return (
@@ -122,30 +119,81 @@ export default function CreateSubscriptionModal({
       animationType="slide"
       onRequestClose={onClose}
     >
-      <SafeAreaView className="modal-overlay">
+      <SafeAreaView style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.5)" }}>
         <KeyboardAvoidingView
           behavior={Platform.OS === "ios" ? "padding" : "height"}
-          className="flex-1"
+          style={{ flex: 1 }}
         >
-          <View className="modal-container">
+          <View
+            style={{
+              backgroundColor: "#FFF9E3",
+              borderTopLeftRadius: 24,
+              borderTopRightRadius: 24,
+              marginTop: "auto",
+              maxHeight: "90%",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: -4 },
+              shadowOpacity: 0.25,
+              shadowRadius: 8,
+              elevation: 5,
+            }}
+          >
             {/* Header */}
-            <View className="modal-header">
-              <Text className="modal-title">New Subscription</Text>
-              <TouchableOpacity onPress={onClose} className="modal-close">
-                <Text className="modal-close-text">×</Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: 20,
+                borderBottomWidth: 1,
+                borderBottomColor: "#C6BFA2",
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 20,
+                  fontWeight: "bold",
+                  color: "#081226",
+                }}
+              >
+                New Subscription
+              </Text>
+              <TouchableOpacity onPress={onClose} style={{ padding: 8 }}>
+                <Text
+                  style={{ fontSize: 28, color: "#081226", fontWeight: "300" }}
+                >
+                  ×
+                </Text>
               </TouchableOpacity>
             </View>
 
             {/* Body */}
             <ScrollView
-              className="modal-body"
+              style={{ padding: 20 }}
               keyboardShouldPersistTaps="handled"
             >
               {/* Name Field */}
-              <View className="auth-field">
-                <Text className="auth-label">Name</Text>
+              <View style={{ marginBottom: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#081226",
+                    marginBottom: 8,
+                  }}
+                >
+                  Name
+                </Text>
                 <TextInput
-                  className="auth-input"
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: 12,
+                    padding: 14,
+                    fontSize: 16,
+                    borderWidth: 1,
+                    borderColor: "#C6BFA2",
+                    color: "#081226",
+                  }}
                   value={name}
                   onChangeText={setName}
                   placeholder="Netflix, Spotify, etc."
@@ -154,10 +202,27 @@ export default function CreateSubscriptionModal({
               </View>
 
               {/* Price Field */}
-              <View className="auth-field">
-                <Text className="auth-label">Price</Text>
+              <View style={{ marginBottom: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#081226",
+                    marginBottom: 8,
+                  }}
+                >
+                  Price
+                </Text>
                 <TextInput
-                  className="auth-input"
+                  style={{
+                    backgroundColor: "white",
+                    borderRadius: 12,
+                    padding: 14,
+                    fontSize: 16,
+                    borderWidth: 1,
+                    borderColor: "#C6BFA2",
+                    color: "#081226",
+                  }}
                   value={price}
                   onChangeText={setPrice}
                   placeholder="0.00"
@@ -167,37 +232,67 @@ export default function CreateSubscriptionModal({
               </View>
 
               {/* Frequency Toggle */}
-              <View className="auth-field">
-                <Text className="auth-label">Frequency</Text>
-                <View className="picker-row">
+              <View style={{ marginBottom: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#081226",
+                    marginBottom: 8,
+                  }}
+                >
+                  Frequency
+                </Text>
+                <View
+                  style={{
+                    flexDirection: "row",
+                    backgroundColor: "white",
+                    borderRadius: 12,
+                    padding: 4,
+                    borderWidth: 1,
+                    borderColor: "#C6BFA2",
+                  }}
+                >
                   <TouchableOpacity
                     onPress={() => setFrequency("Monthly")}
-                    className={clsx(
-                      "picker-option",
-                      frequency === "Monthly" && "picker-option-active",
-                    )}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                      backgroundColor:
+                        frequency === "Monthly" ? "#EA7A53" : "transparent",
+                    }}
                   >
                     <Text
-                      className={clsx(
-                        "picker-option-text",
-                        frequency === "Monthly" && "picker-option-text-active",
-                      )}
+                      style={{
+                        textAlign: "center",
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: frequency === "Monthly" ? "white" : "#081226",
+                      }}
                     >
                       Monthly
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => setFrequency("Yearly")}
-                    className={clsx(
-                      "picker-option",
-                      frequency === "Yearly" && "picker-option-active",
-                    )}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 12,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                      backgroundColor:
+                        frequency === "Yearly" ? "#EA7A53" : "transparent",
+                    }}
                   >
                     <Text
-                      className={clsx(
-                        "picker-option-text",
-                        frequency === "Yearly" && "picker-option-text-active",
-                      )}
+                      style={{
+                        textAlign: "center",
+                        fontSize: 14,
+                        fontWeight: "600",
+                        color: frequency === "Yearly" ? "white" : "#081226",
+                      }}
                     >
                       Yearly
                     </Text>
@@ -206,41 +301,121 @@ export default function CreateSubscriptionModal({
               </View>
 
               {/* Category Selection */}
-              <View className="auth-field">
-                <Text className="auth-label">Category</Text>
-                <View className="category-scroll">
+              <View style={{ marginBottom: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#081226",
+                    marginBottom: 8,
+                  }}
+                >
+                  Category
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                >
                   {CATEGORY_OPTIONS.map((cat) => (
                     <TouchableOpacity
                       key={cat}
                       onPress={() => setCategory(cat)}
-                      className={clsx(
-                        "category-chip",
-                        category === cat && "category-chip-active",
-                      )}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 10,
+                        borderRadius: 20,
+                        backgroundColor: category === cat ? "#EA7A53" : "white",
+                        borderWidth: 1,
+                        borderColor: category === cat ? "#EA7A53" : "#C6BFA2",
+                      }}
                     >
                       <Text
-                        className={clsx(
-                          "category-chip-text",
-                          category === cat && "category-chip-text-active",
-                        )}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "500",
+                          color: category === cat ? "white" : "#081226",
+                        }}
                       >
                         {cat}
                       </Text>
                     </TouchableOpacity>
                   ))}
-                </View>
+                </ScrollView>
+              </View>
+
+              {/* Payment Method Selection */}
+              <View style={{ marginBottom: 20 }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: "600",
+                    color: "#081226",
+                    marginBottom: 8,
+                  }}
+                >
+                  Payment Method
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={{ gap: 8 }}
+                >
+                  {PAYMENT_METHODS.map((method) => (
+                    <TouchableOpacity
+                      key={method}
+                      onPress={() => setPaymentMethod(method)}
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 10,
+                        borderRadius: 20,
+                        backgroundColor:
+                          paymentMethod === method ? "#EA7A53" : "white",
+                        borderWidth: 1,
+                        borderColor:
+                          paymentMethod === method ? "#EA7A53" : "#C6BFA2",
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: "500",
+                          color: paymentMethod === method ? "white" : "#081226",
+                        }}
+                      >
+                        {method}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
               </View>
 
               {/* Submit Button */}
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={!isFormValid}
-                className={clsx(
-                  "auth-button",
-                  !isFormValid && "auth-button-disabled",
-                )}
+                style={{
+                  backgroundColor: isFormValid ? "#EA7A53" : "#CCCCCC",
+                  paddingVertical: 16,
+                  borderRadius: 12,
+                  marginTop: 8,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.2,
+                  shadowRadius: 4,
+                  elevation: 3,
+                }}
               >
-                <Text className="auth-button-text">Create Subscription</Text>
+                <Text
+                  style={{
+                    color: "white",
+                    textAlign: "center",
+                    fontSize: 16,
+                    fontWeight: "600",
+                  }}
+                >
+                  Create Subscription
+                </Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

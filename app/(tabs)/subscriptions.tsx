@@ -1,4 +1,5 @@
 import SubscriptionCard from "@/components/SubscriptionCard";
+import { icons } from "@/constants/icons";
 import { useSubscriptions } from "@/context/SubscriptionsContext";
 import { useAuth, useUser } from "@clerk/expo";
 import { useRouter } from "expo-router";
@@ -51,7 +52,9 @@ export default function Subscriptions() {
     (subscription) =>
       subscription.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       subscription.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      subscription.plan.toLowerCase().includes(searchQuery.toLowerCase()),
+      (subscription.plan?.toLowerCase() || "").includes(
+        searchQuery.toLowerCase(),
+      ),
   );
 
   if (!isLoaded || !isSignedIn) {
@@ -71,11 +74,16 @@ export default function Subscriptions() {
           keyboardDismissMode="on-drag"
           contentContainerClassName="p-5 pb-32"
         >
-          <Text className="text-xl font-bold mb-6">Subscriptions</Text>
+          <Text className="text-xl font-bold mb-6 text-center">
+            Subscriptions
+          </Text>
 
           {/* Search Bar */}
           <View className="mb-4">
-            <View className="flex-row items-center bg-card rounded-xl px-4 py-3">
+            <View
+              className="flex-row items-center bg-card rounded-xl px-4 py-3"
+              style={{ borderColor: "#C6BFA2", borderWidth: 1 }}
+            >
               <TextInput
                 className="flex-1 text-base"
                 placeholder="Search subscriptions..."
@@ -101,6 +109,13 @@ export default function Subscriptions() {
             renderItem={({ item }) => (
               <SubscriptionCard
                 {...item}
+                icon={
+                  item.icon && (icons as any)[item.icon]
+                    ? (icons as any)[item.icon]
+                    : icons.wallet
+                }
+                billing={item.frequency}
+                plan={item.plan || "Custom"}
                 expanded={expandedSubscriptionId === item.id}
                 onPress={() => {
                   setExpandedSubscriptionId((currentId) => {

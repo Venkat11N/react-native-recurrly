@@ -2,24 +2,18 @@ import CreateSubscriptionModal from "@/components/CreateSubscriptionModal";
 import ListHeading from "@/components/ListHeading";
 import SubscriptionCard from "@/components/SubscriptionCard";
 import UpcomingSubscriptionCard from "@/components/UpcomingSubscriptionCard";
-import {
-    HOME_BALANCE,
-    HOME_USER,
-    type Subscription
-} from "@/constants/data";
+import { HOME_USER } from "@/constants/data";
 import { icons } from "@/constants/icons";
 import images from "@/constants/images";
 import { useSubscriptions } from "@/context/SubscriptionsContext";
 import "@/global.css";
 import { useAuth, useUser } from "@clerk/expo";
-import dayjs from "dayjs";
 import { useRouter } from "expo-router";
 import { styled } from "nativewind";
 import { usePostHog } from "posthog-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { FlatList, Image, Pressable, Text, View } from "react-native";
 import { SafeAreaView as RNSafeAreaView } from "react-native-safe-area-context";
-import { formatCurrency } from "../../lib/utils";
 
 const SafeAreaView = styled(RNSafeAreaView);
 
@@ -33,6 +27,7 @@ export default function App() {
     string | null
   >(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [upcomingExpanded, setUpcomingExpanded] = useState(false);
 
   useEffect(() => {
     posthog?.screen("Home");
@@ -52,8 +47,14 @@ export default function App() {
     }
   }, [isLoaded, isSignedIn, user, posthog]);
 
-  const handleSubscriptionCreated = (newSubscription: Subscription) => {
-    addSubscription(newSubscription);
+  const handleSubscriptionCreated = async (
+    subscriptionData: Omit<any, "id" | "userId" | "createdAt" | "updatedAt">,
+  ) => {
+    try {
+      await addSubscription(subscriptionData);
+    } catch (error) {
+      console.error("Failed to create subscription:", error);
+    }
   };
 
   const upcomingSubscriptions = subscriptions
@@ -66,7 +67,10 @@ export default function App() {
       );
       return {
         id: sub.id,
-        icon: sub.icon,
+        icon:
+          sub.icon && (icons as any)[sub.icon]
+            ? (icons as any)[sub.icon]
+            : icons.wallet,
         name: sub.name,
         price: sub.price,
         currency: sub.currency,
@@ -75,6 +79,35 @@ export default function App() {
     })
     .filter((sub) => sub.daysLeft <= 7)
     .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  // Calculate real balance from subscriptions
+  const balanceData = useMemo(() => {
+    const monthlyTotal = subscriptions
+      .filter((sub) => sub.status === "active" && sub.frequency === "Monthly")
+      .reduce((sum, sub) => sum + sub.price, 0);
+
+    const yearlyTotal = subscriptions
+      .filter((sub) => sub.status === "active" && sub.frequency === "Yearly")
+      .reduce((sum, sub) => sum + sub.price, 0);
+
+    const monthlyEquivalent = monthlyTotal + yearlyTotal / 12;
+
+    // Find next renewal date
+    const activeSubscriptions = subscriptions.filter(
+      (sub) => sub.status === "active",
+    );
+    const nextRenewalDate =
+      activeSubscriptions.length > 0
+        ? activeSubscriptions
+            .map((sub) => new Date(sub.renewalDate))
+            .sort((a, b) => a.getTime() - b.getTime())[0]
+        : new Date();
+
+    return {
+      amount: monthlyEquivalent,
+      nextRenewalDate,
+    };
+  }, [subscriptions]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -107,33 +140,93 @@ export default function App() {
               <Text className="home-balance-label">Balance</Text>
               <View className="home-balance-row">
                 <Text className="home-balance-amount">
-                  {formatCurrency(HOME_BALANCE.amount)}
+                  ${balanceData.amount.toFixed(2)}
                 </Text>
                 <Text className="home-balance-date">
-                  {dayjs(HOME_BALANCE.nextRenewalDate).format("MM/DD")}
+                  {balanceData.nextRenewalDate.toLocaleDateString("en-US", {
+                    month: "numeric",
+                    day: "numeric",
+                  })}
                 </Text>
               </View>
             </View>
 
             <View className="mb-5">
-              <ListHeading title="Upcoming" />
-
-              <FlatList
-                data={upcomingSubscriptions}
-                renderItem={({ item }) => (
-                  <UpcomingSubscriptionCard {...item} />
-                )}
-                keyExtractor={(item) => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                ListEmptyComponent={
-                  <Text className="home_empty-state">
-                    No upcoming subscriptions renewals yet.
-                  </Text>
-                }
+              <ListHeading
+                title="Upcoming"
+                onPress={() => setUpcomingExpanded(!upcomingExpanded)}
               />
+
+              {!upcomingExpanded ? (
+                <FlatList
+                  data={upcomingSubscriptions}
+                  renderItem={({ item }) => (
+                    <UpcomingSubscriptionCard {...item} />
+                  )}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  ListEmptyComponent={
+                    <Text className="home_empty-state">
+                      No upcoming subscriptions renewals yet.
+                    </Text>
+                  }
+                />
+              ) : (
+                <View
+                  className="rounded-xl p-4 shadow-sm"
+                  style={{ backgroundColor: "white" }}
+                >
+                  <Text
+                    className="mb-3 text-sm font-bold"
+                    style={{ color: "#081226" }}
+                  >
+                    UPCOMING THIS WEEK
+                  </Text>
+                  {upcomingSubscriptions.length === 0 ? (
+                    <Text className="text-sm" style={{ color: "#435875" }}>
+                      No upcoming subscriptions renewals yet.
+                    </Text>
+                  ) : (
+                    upcomingSubscriptions.map((item, index) => (
+                      <View
+                        key={index}
+                        className="flex-row items-center justify-between border-b border-gray-200 py-2"
+                      >
+                        <Text
+                          className="flex-1 text-xs font-bold"
+                          style={{ color: "#081226" }}
+                        >
+                          {item.daysLeft === 0 ? "Today" : `${item.daysLeft}d`}
+                        </Text>
+                        <Text
+                          className="flex-1 text-xs font-semibold"
+                          style={{ color: "#081226" }}
+                        >
+                          {item.name}
+                        </Text>
+                        <Text
+                          className="flex-1 text-xs"
+                          style={{ color: "#435875" }}
+                        >
+                          {item.currency} {item.price}
+                        </Text>
+                        <Text
+                          className="flex-1 text-xs font-semibold"
+                          style={{ color: "#435875" }}
+                        >
+                          {item.daysLeft === 0 ? "Due Today" : "Pending"}
+                        </Text>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
             </View>
-            <ListHeading title="All Subscription" />
+            <ListHeading
+              title="All Subscription"
+              onPress={() => router.push("/(tabs)/subscriptions")}
+            />
           </>
         )}
         data={subscriptions}
@@ -141,6 +234,13 @@ export default function App() {
         renderItem={({ item }) => (
           <SubscriptionCard
             {...item}
+            icon={
+              item.icon && (icons as any)[item.icon]
+                ? (icons as any)[item.icon]
+                : icons.wallet
+            }
+            billing={item.frequency}
+            plan="Custom"
             expanded={expandedSubscriptionId === item.id}
             onPress={() => {
               setExpandedSubscriptionId((currentId) => {

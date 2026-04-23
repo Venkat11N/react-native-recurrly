@@ -1,0 +1,30 @@
+[
+  {
+    "id": "sub_1776941422546",
+    "userId": "temp_user",
+    "name": "Netflix",
+    "price": 9.99,
+    "frequency": "Monthly",
+    "category": "Entertainment",
+    "icon": "🎬",
+    "renewalDate": "2026-05-23T10:50:06.823Z",
+    "startDate": "2026-04-23T10:50:06.825Z",
+    "status": "active",
+    "createdAt": "2026-04-23T10:50:22.546Z",
+    "updatedAt": "2026-04-23T10:50:22.546Z"
+  },
+  {
+    "id": "sub_1776941841452",
+    "userId": "temp_user",
+    "name": "Spotify",
+    "price": 6.99,
+    "frequency": "Monthly",
+    "category": "Music",
+    "icon": 22,
+    "renewalDate": "2026-05-23T10:57:06.099Z",
+    "startDate": "2026-04-23T10:57:06.101Z",
+    "status": "active",
+    "createdAt": "2026-04-23T10:57:21.452Z",
+    "updatedAt": "2026-04-23T10:57:21.452Z"
+  }
+]

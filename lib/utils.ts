@@ -46,9 +46,9 @@ const ICON_MAPPING: Record<string, any> = {
   dropbox: icons.dropbox,
   openai: icons.openai,
   medium: icons.medium,
+  netflix: icons.netflix,
 
   // Emoji fallbacks for common services
-  netflix: "🎬",
   disney: "🏰",
   hulu: "📺",
   "amazon prime": "📦",
@@ -126,21 +126,21 @@ const ICON_MAPPING: Record<string, any> = {
   gumroad: "🛒",
 };
 
-export const getSubscriptionIcon = (name: string): any => {
+export const getSubscriptionIcon = (name: string): string => {
   const normalizedName = name.toLowerCase().trim();
 
-  // Direct match
+  // Direct match - return the key name instead of the icon itself
   if (ICON_MAPPING[normalizedName]) {
-    return ICON_MAPPING[normalizedName];
+    return normalizedName;
   }
 
-  // Partial match
-  for (const [key, value] of Object.entries(ICON_MAPPING)) {
+  // Partial match - return the key name
+  for (const [key] of Object.entries(ICON_MAPPING)) {
     if (normalizedName.includes(key) || key.includes(normalizedName)) {
-      return value;
+      return key;
     }
   }
 
-  // Fallback to wallet icon
-  return icons.wallet;
+  // Fallback to wallet icon name
+  return "wallet";
 };
