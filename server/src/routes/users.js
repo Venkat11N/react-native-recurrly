@@ -1,4 +1,4 @@
-import { clerkClient, getAuth } from "@clerk/express";
+import { clerkClient } from "@clerk/express";
 import { Router } from "express";
 import { userDb } from "../lib/db.js";
 

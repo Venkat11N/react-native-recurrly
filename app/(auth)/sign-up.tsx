@@ -4,14 +4,14 @@ import { Link, useRouter } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import React, { useEffect, useState } from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 
 export default function SignUp() {
@@ -210,9 +210,7 @@ export default function SignUp() {
           {/* Brand Section */}
           <View style={styles.brandSection}>
             <View style={styles.logoContainer}>
-              <View style={styles.logo}>
-                <Text style={styles.logoText}>R</Text>
-              </View>
+              <Image source={icons.logo} style={styles.logoImage} />
               <Text style={styles.brandName}>Recurrly</Text>
             </View>
             <Text style={styles.title}>Create your account</Text>
@@ -384,6 +382,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#ea7a53",
     alignItems: "center",
     justifyContent: "center",
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
   },
   logoText: {
     fontSize: 24,

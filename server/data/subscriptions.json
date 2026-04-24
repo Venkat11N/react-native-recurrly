@@ -7,7 +7,7 @@
     "frequency": "Monthly",
     "category": "Entertainment",
     "icon": "netflix",
-    "renewalDate": "2026-05-23T10:50:06.823Z",
+    "renewalDate": "2026-04-26T10:50:06.823Z",
     "startDate": "2026-04-23T10:50:06.825Z",
     "status": "active",
     "createdAt": "2026-04-23T10:50:22.546Z",
@@ -21,10 +21,24 @@
     "frequency": "Monthly",
     "category": "Music",
     "icon": "spotify",
-    "renewalDate": "2026-05-23T10:57:06.099Z",
+    "renewalDate": "2026-04-28T10:57:06.099Z",
     "startDate": "2026-04-23T10:57:06.101Z",
     "status": "active",
     "createdAt": "2026-04-23T10:57:21.452Z",
     "updatedAt": "2026-04-23T10:57:21.452Z"
+  },
+  {
+    "id": "sub_1777004682828",
+    "userId": "temp_user",
+    "name": "Claude",
+    "price": 20,
+    "frequency": "Monthly",
+    "category": "AI Tools",
+    "icon": "claude",
+    "renewalDate": "2026-04-30T04:24:25.628Z",
+    "startDate": "2026-04-24T04:24:25.632Z",
+    "status": "active",
+    "createdAt": "2026-04-24T04:24:42.828Z",
+    "updatedAt": "2026-04-24T04:24:42.828Z"
   }
 ]

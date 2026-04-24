@@ -1,174 +1,233 @@
-import fs from "fs/promises";
-import path from "path";
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
-const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, "subscriptions.json");
-
-// Ensure data directory exists
-async function ensureDataDir() {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (_error) {
-    // Directory might already exist
-  }
-}
-
-// Initialize data files if they don't exist
-async function initDataFiles() {
-  await ensureDataDir();
-
-  try {
-    await fs.access(USERS_FILE);
-  } catch {
-    await fs.writeFile(USERS_FILE, "[]");
-  }
-
-  try {
-    await fs.access(SUBSCRIPTIONS_FILE);
-  } catch {
-    await fs.writeFile(SUBSCRIPTIONS_FILE, "[]");
-  }
-}
-
-// Read users from file
-async function getUsers() {
-  await initDataFiles();
-  const data = await fs.readFile(USERS_FILE, "utf-8");
-  return JSON.parse(data);
-}
-
-// Write users to file
-async function saveUsers(users) {
-  await initDataFiles();
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2));
-}
-
-// Read subscriptions from file
-async function getSubscriptions() {
-  await initDataFiles();
-  const data = await fs.readFile(SUBSCRIPTIONS_FILE, "utf-8");
-  return JSON.parse(data);
-}
-
-// Write subscriptions to file
-async function saveSubscriptions(subscriptions) {
-  await initDataFiles();
-  await fs.writeFile(
-    SUBSCRIPTIONS_FILE,
-    JSON.stringify(subscriptions, null, 2),
-  );
-}
+import pool from "./database.js";
 
 // User operations
 export const userDb = {
   async findByClerkId(clerkId) {
-    const users = await getUsers();
-    return users.find((u) => u.clerkId === clerkId);
+    const result = await pool.query("SELECT * FROM users WHERE clerk_id = $1", [
+      clerkId,
+    ]);
+    return result.rows[0] || null;
   },
 
   async create(userData) {
-    const users = await getUsers();
-    const newUser = {
-      id: `user_${Date.now()}`,
-      ...userData,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    users.push(newUser);
-    await saveUsers(users);
-    return newUser;
+    const id = `user_${Date.now()}`;
+    const result = await pool.query(
+      `INSERT INTO users (id, clerk_id, email, first_name, last_name, image_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        id,
+        userData.clerkId,
+        userData.email,
+        userData.firstName || null,
+        userData.lastName || null,
+        userData.imageUrl || null,
+      ],
+    );
+    return result.rows[0];
   },
 
   async update(clerkId, userData) {
-    const users = await getUsers();
-    const index = users.findIndex((u) => u.clerkId === clerkId);
-    if (index === -1) return null;
-
-    users[index] = {
-      ...users[index],
-      ...userData,
-      updatedAt: new Date().toISOString(),
-    };
-    await saveUsers(users);
-    return users[index];
+    const result = await pool.query(
+      `UPDATE users 
+       SET email = $1, first_name = $2, last_name = $3, image_url = $4, updated_at = CURRENT_TIMESTAMP
+       WHERE clerk_id = $5
+       RETURNING *`,
+      [
+        userData.email,
+        userData.firstName || null,
+        userData.lastName || null,
+        userData.imageUrl || null,
+        clerkId,
+      ],
+    );
+    return result.rows[0] || null;
   },
 
   async delete(clerkId) {
-    const users = await getUsers();
-    const filtered = users.filter((u) => u.clerkId !== clerkId);
-    await saveUsers(filtered);
+    await pool.query("DELETE FROM users WHERE clerk_id = $1", [clerkId]);
   },
 };
 
 // Subscription operations
 export const subscriptionDb = {
   async findByUserId(userId) {
-    const subscriptions = await getSubscriptions();
-    return subscriptions.filter((s) => s.userId === userId);
+    const result = await pool.query(
+      "SELECT * FROM subscriptions WHERE user_id = $1",
+      [userId],
+    );
+    return result.rows;
   },
 
   async findById(id) {
-    const subscriptions = await getSubscriptions();
-    return subscriptions.find((s) => s.id === id);
+    const result = await pool.query(
+      "SELECT * FROM subscriptions WHERE id = $1",
+      [id],
+    );
+    const row = result.rows[0];
+    if (!row) return null;
+
+    // Convert snake_case to camelCase for frontend compatibility
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      price: row.price,
+      currency: row.currency,
+      frequency: row.frequency,
+      category: row.category,
+      icon: row.icon,
+      renewalDate: row.renewal_date,
+      startDate: row.start_date,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   },
 
   async create(subscriptionData) {
-    const subscriptions = await getSubscriptions();
-    const newSubscription = {
-      id: `sub_${Date.now()}`,
-      ...subscriptionData,
-      status: subscriptionData.status || "active",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+    const id = `sub_${Date.now()}`;
+    const result = await pool.query(
+      `INSERT INTO subscriptions (id, user_id, name, price, currency, frequency, category, icon, renewal_date, start_date, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       RETURNING *`,
+      [
+        id,
+        subscriptionData.userId,
+        subscriptionData.name,
+        subscriptionData.price,
+        subscriptionData.currency || "USD",
+        subscriptionData.frequency || "Monthly",
+        subscriptionData.category || "Other",
+        subscriptionData.icon || "wallet",
+        subscriptionData.renewalDate,
+        subscriptionData.startDate || new Date().toISOString(),
+        subscriptionData.status || "active",
+      ],
+    );
+    const row = result.rows[0];
+
+    // Convert snake_case to camelCase for frontend compatibility
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      price: row.price,
+      currency: row.currency,
+      frequency: row.frequency,
+      category: row.category,
+      icon: row.icon,
+      renewalDate: row.renewal_date,
+      startDate: row.start_date,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
     };
-    subscriptions.push(newSubscription);
-    await saveSubscriptions(subscriptions);
-    return newSubscription;
   },
 
   async update(id, subscriptionData) {
-    const subscriptions = await getSubscriptions();
-    const index = subscriptions.findIndex((s) => s.id === id);
-    if (index === -1) return null;
+    const fields = [];
+    const values = [];
+    let paramIndex = 1;
 
-    subscriptions[index] = {
-      ...subscriptions[index],
-      ...subscriptionData,
-      updatedAt: new Date().toISOString(),
+    const updateMap = {
+      name: "name",
+      price: "price",
+      currency: "currency",
+      frequency: "frequency",
+      category: "category",
+      icon: "icon",
+      renewalDate: "renewal_date",
+      startDate: "start_date",
+      status: "status",
     };
-    await saveSubscriptions(subscriptions);
-    return subscriptions[index];
+
+    for (const [key, dbField] of Object.entries(updateMap)) {
+      if (subscriptionData[key] !== undefined) {
+        fields.push(`${dbField} = $${paramIndex}`);
+        values.push(subscriptionData[key]);
+        paramIndex++;
+      }
+    }
+
+    if (fields.length === 0) return null;
+
+    fields.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(id);
+
+    const query = `
+      UPDATE subscriptions 
+      SET ${fields.join(", ")}
+      WHERE id = $${paramIndex}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+    const row = result.rows[0];
+    if (!row) return null;
+
+    // Convert snake_case to camelCase for frontend compatibility
+    return {
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      price: row.price,
+      currency: row.currency,
+      frequency: row.frequency,
+      category: row.category,
+      icon: row.icon,
+      renewalDate: row.renewal_date,
+      startDate: row.start_date,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    };
   },
 
   async delete(id) {
-    const subscriptions = await getSubscriptions();
-    const filtered = subscriptions.filter((s) => s.id !== id);
-    await saveSubscriptions(filtered);
+    await pool.query("DELETE FROM subscriptions WHERE id = $1", [id]);
   },
 
   async findMany(filters = {}) {
-    const subscriptions = await getSubscriptions();
-    let filtered = subscriptions;
+    let query = "SELECT * FROM subscriptions WHERE 1=1";
+    const values = [];
+    let paramIndex = 1;
 
     if (filters.userId) {
-      filtered = filtered.filter((s) => s.userId === filters.userId);
+      query += ` AND user_id = $${paramIndex}`;
+      values.push(filters.userId);
+      paramIndex++;
     }
 
     if (filters.status) {
-      filtered = filtered.filter((s) => s.status === filters.status);
+      query += ` AND status = $${paramIndex}`;
+      values.push(filters.status);
+      paramIndex++;
     }
 
     if (filters.startDate && filters.endDate) {
-      filtered = filtered.filter((s) => {
-        const renewalDate = new Date(s.renewalDate);
-        return (
-          renewalDate >= new Date(filters.startDate) &&
-          renewalDate <= new Date(filters.endDate)
-        );
-      });
+      query += ` AND renewal_date >= $${paramIndex} AND renewal_date <= $${paramIndex + 1}`;
+      values.push(filters.startDate, filters.endDate);
+      paramIndex += 2;
     }
 
-    return filtered;
+    const result = await pool.query(query, values);
+
+    // Convert snake_case to camelCase for frontend compatibility
+    return result.rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      price: row.price,
+      currency: row.currency,
+      frequency: row.frequency,
+      category: row.category,
+      icon: row.icon,
+      renewalDate: row.renewal_date,
+      startDate: row.start_date,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
   },
 };

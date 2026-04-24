@@ -7,9 +7,11 @@ const router = Router();
 router.get("/", async (req, res) => {
   try {
     console.log("GET /api/subscriptions - Request received");
+
     // Temporarily skip auth for testing
     const subscriptions = await subscriptionDb.findMany();
     console.log("Subscriptions found:", subscriptions.length);
+
     res.json(
       subscriptions.sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
@@ -41,6 +43,7 @@ router.get("/:id", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     console.log("POST /api/subscriptions - Request received");
+
     // Temporarily skip auth for testing
     const { name, price, frequency, category, icon, renewalDate, startDate } =
       req.body;
@@ -74,8 +77,20 @@ router.post("/", async (req, res) => {
         .json({ error: "Renewal date must be a valid date" });
     }
 
+    // Ensure test user exists
+    const { userDb } = await import("../lib/db.js");
+    let testUser = await userDb.findByClerkId("temp_clerk_id");
+    if (!testUser) {
+      testUser = await userDb.create({
+        clerkId: "temp_clerk_id",
+        email: "test@example.com",
+        firstName: "Test",
+        lastName: "User",
+      });
+    }
+
     const subscription = await subscriptionDb.create({
-      userId: "temp_user", // Temporary user ID
+      userId: testUser.id,
       name: name.trim(),
       price: priceValue,
       frequency: frequency || "Monthly",

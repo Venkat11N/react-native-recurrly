@@ -5,7 +5,7 @@ import insightsRoutes from "./routes/insights.js";
 import subscriptionRoutes from "./routes/subscriptions.js";
 import userRoutes from "./routes/users.js";
 
-dotenv.config();
+dotenv.config({ override: true });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -20,7 +20,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Clerk authentication middleware (disabled until keys are fixed)
+// Clerk authentication middleware (temporarily disabled due to error)
 // app.use(
 //   clerkMiddleware({
 //     publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
