@@ -14,7 +14,6 @@ const Insights = () => {
 
   // Calculate real data from subscriptions
   const insightsData = useMemo(() => {
-    console.log("Insights - Recalculating with subscriptions:", subscriptions);
     const activeSubscriptions = subscriptions.filter(
       (sub) =>
         String(sub.status || "active")
@@ -86,25 +85,16 @@ const Insights = () => {
     // Calculate chart data (next 7 days of upcoming renewals)
     const monthlySubs = activeSubscriptions.filter(
       (sub) =>
-        String(sub.status || "active")
-          .trim()
-          .toLowerCase() === "active" &&
         String(sub.frequency || "Monthly")
           .trim()
           .toLowerCase() === "monthly",
     );
     const yearlySubs = activeSubscriptions.filter(
       (sub) =>
-        String(sub.status || "active")
-          .trim()
-          .toLowerCase() === "active" &&
         String(sub.frequency || "Yearly")
           .trim()
           .toLowerCase() === "yearly",
     );
-
-    console.log("Insights - Monthly subs:", monthlySubs);
-    console.log("Insights - Yearly subs:", yearlySubs);
 
     const monthlyTotal = monthlySubs.reduce(
       (sum, sub) => sum + (Number(sub.price) || 0),
@@ -115,15 +105,6 @@ const Insights = () => {
       0,
     );
     const totalAmount = monthlyTotal + yearlyTotal;
-
-    console.log(
-      "Insights - Monthly total:",
-      monthlyTotal,
-      "Yearly total:",
-      yearlyTotal,
-      "Total amount:",
-      totalAmount,
-    );
 
     // Show fixed week sequence (Monday through Sunday)
     const weekDays = [];
@@ -229,9 +210,6 @@ const Insights = () => {
         maxValue = 1000; // intervals of 250
       else maxValue = Math.ceil(paddedMax / 400) * 400;
     }
-
-    console.log("Graph - Week days data:", weekDays);
-    console.log("Graph - Max value:", maxValue);
 
     return {
       chartData: weekDays,
@@ -507,12 +485,7 @@ const Insights = () => {
                             color: isToday ? "white" : "#435875",
                           }}
                         >
-                          $
-                          {typeof item.price === "number"
-                            ? item.price.toFixed(2)
-                            : parseFloat(
-                                item.price as unknown as string,
-                              ).toFixed(2)}
+                          ${Number(item.price).toFixed(2)}
                         </Text>
                         <Text
                           className="flex-1 text-xs font-semibold"

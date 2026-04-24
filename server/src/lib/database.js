@@ -15,7 +15,6 @@ if (result.error) {
 
 const { Pool } = pg;
 
-
 if (!process.env.DATABASE_URL) {
   console.error("ERROR: DATABASE_URL environment variable is not set!");
   console.error("Please set DATABASE_URL in your .env file");
@@ -28,7 +27,8 @@ console.log("Connecting to PostgreSQL:", maskedUrl);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: false, // Disable SSL for local connections
+  ssl:
+    process.env.DATABASE_SSL === "true" ? { rejectUnauthorized: false } : false,
 });
 
 // Test database connection
@@ -38,7 +38,7 @@ pool.on("connect", () => {
 
 pool.on("error", (err) => {
   console.error("Unexpected error on idle client", err);
-  process.exit(-1);
+  // Log error but don't force exit - let application handle it
 });
 
 // Test connection on startup

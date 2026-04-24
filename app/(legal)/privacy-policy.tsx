@@ -176,7 +176,7 @@ const PrivacyPolicy = () => {
               className="text-lg font-bold mb-2"
               style={{ color: "#081226" }}
             >
-              7. Children's Privacy
+              7. Children&apos;s Privacy
             </Text>
             <Text className="text-sm leading-6" style={{ color: "#435875" }}>
               Recurrly is not intended for children under 13. We do not

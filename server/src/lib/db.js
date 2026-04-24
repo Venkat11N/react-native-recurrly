@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import pool from "./database.js";
 
 // User operations
@@ -10,7 +11,7 @@ export const userDb = {
   },
 
   async create(userData) {
-    const id = `user_${Date.now()}`;
+    const id = crypto.randomUUID();
     const result = await pool.query(
       `INSERT INTO users (id, clerk_id, email, first_name, last_name, image_url)
        VALUES ($1, $2, $3, $4, $5, $6)
@@ -56,7 +57,22 @@ export const subscriptionDb = {
       "SELECT * FROM subscriptions WHERE user_id = $1",
       [userId],
     );
-    return result.rows;
+    // Convert snake_case to camelCase for frontend compatibility
+    return result.rows.map((row) => ({
+      id: row.id,
+      userId: row.user_id,
+      name: row.name,
+      price: row.price,
+      currency: row.currency,
+      frequency: row.frequency,
+      category: row.category,
+      icon: row.icon,
+      renewalDate: row.renewal_date,
+      startDate: row.start_date,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
   },
 
   async findById(id) {
@@ -86,7 +102,7 @@ export const subscriptionDb = {
   },
 
   async create(subscriptionData) {
-    const id = `sub_${Date.now()}`;
+    const id = crypto.randomUUID();
     const result = await pool.query(
       `INSERT INTO subscriptions (id, user_id, name, price, currency, frequency, category, icon, renewal_date, start_date, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
