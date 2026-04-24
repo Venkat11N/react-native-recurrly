@@ -1,17 +1,19 @@
+import { icons } from "@/constants/icons";
 import { validateEmail } from "@/lib/utils";
 import { useClerk, useSignUp } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import React, { useEffect, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 
 export default function SignUp() {
@@ -281,7 +283,7 @@ export default function SignUp() {
                   {/* Verification Instructions */}
                   <View style={styles.verificationInstructions}>
                     <Text style={styles.subtitle}>
-                      We've sent a verification code to
+                      We&apos;ve sent a verification code to
                     </Text>
                     <Text style={styles.verificationEmail}>{emailAddress}</Text>
                     <Text style={styles.verificationSubtitle}>

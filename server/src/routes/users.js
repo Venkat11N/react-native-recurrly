@@ -4,6 +4,22 @@ import { userDb } from "../lib/db.js";
 
 const router = Router();
 
+// Helper to extract user ID from Authorization header
+const getUserIdFromToken = async (authHeader) => {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  const token = authHeader.substring(7);
+  try {
+    // Verify the token with Clerk to get the user ID
+    const decoded = await clerkClient.verifyToken(token);
+    return decoded.sub;
+  } catch (error) {
+    console.error("Error verifying token:", error);
+    return null;
+  }
+};
+
 // Clerk webhook endpoint to sync users
 router.post("/clerk/webhook", async (req, res) => {
   try {
@@ -25,7 +41,7 @@ router.post("/clerk/webhook", async (req, res) => {
       case "user.updated":
         // Update user in database when Clerk user is updated
         const updatedUser = await userDb.update(data.id, {
-          email: data.email_addresses[0]?.email_address,
+          email: data.email_addresses[0]?.emailAddress,
           firstName: data.first_name,
           lastName: data.last_name,
           imageUrl: data.image_url,
@@ -53,18 +69,18 @@ router.post("/clerk/webhook", async (req, res) => {
 // Sync current user (for manual sync if needed)
 router.post("/sync", async (req, res) => {
   try {
-    const auth = getAuth(req);
-    if (!auth?.userId) {
+    const clerkId = await getUserIdFromToken(req.headers.authorization);
+    if (!clerkId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const clerkUser = await clerkClient.users.getUser(auth.userId);
+    const clerkUser = await clerkClient.users.getUser(clerkId);
 
-    const existingUser = await userDb.findByClerkId(auth.userId);
+    const existingUser = await userDb.findByClerkId(clerkId);
 
     let user;
     if (existingUser) {
-      user = await userDb.update(auth.userId, {
+      user = await userDb.update(clerkId, {
         email: clerkUser.emailAddresses[0]?.emailAddress || "",
         firstName: clerkUser.firstName,
         lastName: clerkUser.lastName,
@@ -72,7 +88,7 @@ router.post("/sync", async (req, res) => {
       });
     } else {
       user = await userDb.create({
-        clerkId: auth.userId,
+        clerkId: clerkId,
         email: clerkUser.emailAddresses[0]?.emailAddress || "",
         firstName: clerkUser.firstName,
         lastName: clerkUser.lastName,

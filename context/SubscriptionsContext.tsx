@@ -63,8 +63,21 @@ export function SubscriptionsProvider({
   const parsePrice = (price: any): number => {
     if (typeof price === "number") return price;
     if (!price) return 0;
-    const cleanStr = String(price).replace(/[^\d.-]/g, "");
-    return Number(cleanStr) || 0;
+    const cleanStr = String(price).trim();
+    // Handle negative sign
+    const isNegative = cleanStr.startsWith("-");
+    const withoutSign = isNegative ? cleanStr.slice(1) : cleanStr;
+    // Remove all dashes except the first one
+    const withoutDashes = withoutSign.replace(/-/g, "");
+    // Split on decimal point and keep only first one
+    const parts = withoutDashes.split(".");
+    const normalized =
+      parts.length > 1
+        ? parts[0] + "." + parts.slice(1).join("")
+        : withoutDashes;
+    const parsed = Number(normalized);
+    // Clamp negatives to 0 for subscriptions
+    return isNaN(parsed) ? 0 : Math.max(0, parsed);
   };
 
   const refreshSubscriptions = async () => {
@@ -81,7 +94,6 @@ export function SubscriptionsProvider({
         ...sub,
         price: parsePrice(sub.price),
       }));
-      console.log("Subscriptions refreshed:", parsedData);
       setSubscriptions(parsedData);
     } catch (err) {
       setError(
@@ -100,18 +112,15 @@ export function SubscriptionsProvider({
     >,
   ) => {
     try {
-      console.log("Adding subscription:", subscription);
       const token = await getToken();
       if (!token) {
         setError("Not authenticated");
         throw new Error("Not authenticated");
       }
-      const newSubscription = await createSubscription(token, subscription);
-      console.log("Subscription created successfully:", newSubscription);
+      await createSubscription(token, subscription);
 
       // Force a fresh sync to ensure state perfectly matches the database
       await refreshSubscriptions();
-      console.log("Refresh completed after adding subscription");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to create subscription",

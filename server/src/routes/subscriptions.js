@@ -1,15 +1,59 @@
+import { clerkClient, verifyToken } from "@clerk/express";
 import { Router } from "express";
 import { subscriptionDb } from "../lib/db.js";
 
 const router = Router();
+
+// Helper to extract user ID from Authorization header
+const getUserIdFromToken = async (authHeader) => {
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return null;
+  }
+  const token = authHeader.substring(7);
+  try {
+    // Verify the token with Clerk to get the user ID
+    const decoded = await verifyToken(token, {
+      secretKey: process.env.CLERK_SECRET_KEY,
+    });
+    return decoded.sub;
+  } catch (error) {
+    console.error("Error verifying token:", error);
+    return null;
+  }
+};
 
 // Get all subscriptions for the authenticated user
 router.get("/", async (req, res) => {
   try {
     console.log("GET /api/subscriptions - Request received");
 
-    // Temporarily skip auth for testing
-    const subscriptions = await subscriptionDb.findMany();
+    const clerkId = await getUserIdFromToken(req.headers.authorization);
+    if (!clerkId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { userDb } = await import("../lib/db.js");
+    let user = await userDb.findByClerkId(clerkId);
+
+    // Auto-create user if they don't exist
+    if (!user) {
+      try {
+        const clerkUser = await clerkClient.users.getUser(clerkId);
+        user = await userDb.create({
+          clerkId: clerkId,
+          email: clerkUser.emailAddresses[0]?.emailAddress || "",
+          firstName: clerkUser.firstName,
+          lastName: clerkUser.lastName,
+          imageUrl: clerkUser.imageUrl,
+        });
+        console.log("Auto-created user:", user.id);
+      } catch (clerkError) {
+        console.error("Error fetching user from Clerk:", clerkError);
+        return res.status(404).json({ error: "User not found" });
+      }
+    }
+
+    const subscriptions = await subscriptionDb.findMany({ userId: user.id });
     console.log("Subscriptions found:", subscriptions.length);
 
     res.json(
@@ -26,10 +70,25 @@ router.get("/", async (req, res) => {
 // Get a single subscription by ID
 router.get("/:id", async (req, res) => {
   try {
-    // Temporarily skip auth for testing
+    const clerkId = await getUserIdFromToken(req.headers.authorization);
+    if (!clerkId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { userDb } = await import("../lib/db.js");
+    const user = await userDb.findByClerkId(clerkId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     const subscription = await subscriptionDb.findById(req.params.id);
     if (!subscription) {
       return res.status(404).json({ error: "Subscription not found" });
+    }
+
+    // Verify ownership
+    if (subscription.userId !== user.id) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     res.json(subscription);
@@ -44,7 +103,17 @@ router.post("/", async (req, res) => {
   try {
     console.log("POST /api/subscriptions - Request received");
 
-    // Temporarily skip auth for testing
+    const clerkId = await getUserIdFromToken(req.headers.authorization);
+    if (!clerkId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { userDb } = await import("../lib/db.js");
+    const user = await userDb.findByClerkId(clerkId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     const { name, price, frequency, category, icon, renewalDate, startDate } =
       req.body;
 
@@ -77,20 +146,8 @@ router.post("/", async (req, res) => {
         .json({ error: "Renewal date must be a valid date" });
     }
 
-    // Ensure test user exists
-    const { userDb } = await import("../lib/db.js");
-    let testUser = await userDb.findByClerkId("temp_clerk_id");
-    if (!testUser) {
-      testUser = await userDb.create({
-        clerkId: "temp_clerk_id",
-        email: "test@example.com",
-        firstName: "Test",
-        lastName: "User",
-      });
-    }
-
     const subscription = await subscriptionDb.create({
-      userId: testUser.id,
+      userId: user.id,
       name: name.trim(),
       price: priceValue,
       frequency: frequency || "Monthly",
@@ -114,10 +171,25 @@ router.post("/", async (req, res) => {
 // Update a subscription
 router.put("/:id", async (req, res) => {
   try {
-    // Temporarily skip auth for testing
+    const clerkId = await getUserIdFromToken(req.headers.authorization);
+    if (!clerkId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { userDb } = await import("../lib/db.js");
+    const user = await userDb.findByClerkId(clerkId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     const subscription = await subscriptionDb.findById(req.params.id);
     if (!subscription) {
       return res.status(404).json({ error: "Subscription not found" });
+    }
+
+    // Verify ownership
+    if (subscription.userId !== user.id) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     const { name, price, frequency, category, icon, renewalDate, status } =
@@ -147,10 +219,25 @@ router.put("/:id", async (req, res) => {
 // Delete a subscription
 router.delete("/:id", async (req, res) => {
   try {
-    // Temporarily skip auth for testing
+    const clerkId = await getUserIdFromToken(req.headers.authorization);
+    if (!clerkId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { userDb } = await import("../lib/db.js");
+    const user = await userDb.findByClerkId(clerkId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
     const subscription = await subscriptionDb.findById(req.params.id);
     if (!subscription) {
       return res.status(404).json({ error: "Subscription not found" });
+    }
+
+    // Verify ownership
+    if (subscription.userId !== user.id) {
+      return res.status(403).json({ error: "Forbidden" });
     }
 
     await subscriptionDb.delete(req.params.id);

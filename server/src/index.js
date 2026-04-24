@@ -20,14 +20,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Clerk authentication middleware (temporarily disabled due to error)
-// app.use(
-//   clerkMiddleware({
-//     publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-//     secretKey: process.env.CLERK_SECRET_KEY,
-//   }),
-// );
-
 // Health check
 app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "Recurrly API is running" });

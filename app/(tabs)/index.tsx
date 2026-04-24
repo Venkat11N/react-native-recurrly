@@ -130,10 +130,6 @@ export default function App() {
 
   // Calculate real balance from subscriptions
   const balanceData = useMemo(() => {
-    console.log(
-      "Home - Recalculating balance with subscriptions:",
-      subscriptions,
-    );
     const monthlyTotal = subscriptions
       .filter(
         (sub) =>
@@ -159,15 +155,6 @@ export default function App() {
       .reduce((sum, sub) => sum + (Number(sub.price) || 0), 0);
 
     const totalAmount = monthlyTotal + yearlyTotal;
-
-    console.log(
-      "Home - Monthly total:",
-      monthlyTotal,
-      "Yearly total:",
-      yearlyTotal,
-      "Total amount:",
-      totalAmount,
-    );
 
     // Find next renewal date
     const activeSubscriptions = subscriptions.filter(
