@@ -59,12 +59,59 @@ export default function App() {
   };
 
   const upcomingSubscriptions = subscriptions
-    .filter((sub) => sub.status === "active")
+    .filter(
+      (sub) =>
+        String(sub.status || "active")
+          .trim()
+          .toLowerCase() === "active",
+    )
     .map((sub) => {
       const renewalDate = new Date(sub.renewalDate);
+      let nextRenewal = new Date(renewalDate);
       const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (
+        nextRenewal < today &&
+        nextRenewal.toDateString() !== today.toDateString()
+      ) {
+        if (
+          String(sub.frequency || "Monthly")
+            .trim()
+            .toLowerCase() === "monthly"
+        ) {
+          nextRenewal = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            renewalDate.getDate(),
+          );
+          if (
+            nextRenewal < today &&
+            nextRenewal.toDateString() !== today.toDateString()
+          ) {
+            nextRenewal.setMonth(nextRenewal.getMonth() + 1);
+          }
+        } else if (
+          String(sub.frequency || "Yearly")
+            .trim()
+            .toLowerCase() === "yearly"
+        ) {
+          nextRenewal = new Date(
+            today.getFullYear(),
+            renewalDate.getMonth(),
+            renewalDate.getDate(),
+          );
+          if (
+            nextRenewal < today &&
+            nextRenewal.toDateString() !== today.toDateString()
+          ) {
+            nextRenewal.setFullYear(nextRenewal.getFullYear() + 1);
+          }
+        }
+      }
+
       const daysLeft = Math.ceil(
-        (renewalDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+        (nextRenewal.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
       );
       return {
         id: sub.id,
@@ -83,29 +130,117 @@ export default function App() {
 
   // Calculate real balance from subscriptions
   const balanceData = useMemo(() => {
+    console.log(
+      "Home - Recalculating balance with subscriptions:",
+      subscriptions,
+    );
     const monthlyTotal = subscriptions
-      .filter((sub) => sub.status === "active" && sub.frequency === "Monthly")
-      .reduce((sum, sub) => sum + sub.price, 0);
+      .filter(
+        (sub) =>
+          String(sub.status || "active")
+            .trim()
+            .toLowerCase() === "active" &&
+          String(sub.frequency || "Monthly")
+            .trim()
+            .toLowerCase() === "monthly",
+      )
+      .reduce((sum, sub) => sum + (Number(sub.price) || 0), 0);
 
     const yearlyTotal = subscriptions
-      .filter((sub) => sub.status === "active" && sub.frequency === "Yearly")
-      .reduce((sum, sub) => sum + sub.price, 0);
+      .filter(
+        (sub) =>
+          String(sub.status || "active")
+            .trim()
+            .toLowerCase() === "active" &&
+          String(sub.frequency || "Yearly")
+            .trim()
+            .toLowerCase() === "yearly",
+      )
+      .reduce((sum, sub) => sum + (Number(sub.price) || 0), 0);
 
-    const monthlyEquivalent = monthlyTotal + yearlyTotal / 12;
+    const totalAmount = monthlyTotal + yearlyTotal;
+
+    console.log(
+      "Home - Monthly total:",
+      monthlyTotal,
+      "Yearly total:",
+      yearlyTotal,
+      "Total amount:",
+      totalAmount,
+    );
 
     // Find next renewal date
     const activeSubscriptions = subscriptions.filter(
-      (sub) => sub.status === "active",
+      (sub) =>
+        String(sub.status || "active")
+          .trim()
+          .toLowerCase() === "active",
     );
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const validDates = activeSubscriptions
+      .map((sub) => {
+        try {
+          const date = new Date(sub.renewalDate);
+          if (isNaN(date.getTime())) {
+            return null;
+          }
+          let nextRenewal = new Date(date);
+          if (
+            nextRenewal < today &&
+            nextRenewal.toDateString() !== today.toDateString()
+          ) {
+            if (
+              String(sub.frequency || "Monthly")
+                .trim()
+                .toLowerCase() === "monthly"
+            ) {
+              nextRenewal = new Date(
+                today.getFullYear(),
+                today.getMonth(),
+                date.getDate(),
+              );
+              if (
+                nextRenewal < today &&
+                nextRenewal.toDateString() !== today.toDateString()
+              ) {
+                nextRenewal.setMonth(nextRenewal.getMonth() + 1);
+              }
+            } else if (
+              String(sub.frequency || "Yearly")
+                .trim()
+                .toLowerCase() === "yearly"
+            ) {
+              nextRenewal = new Date(
+                today.getFullYear(),
+                date.getMonth(),
+                date.getDate(),
+              );
+              if (
+                nextRenewal < today &&
+                nextRenewal.toDateString() !== today.toDateString()
+              ) {
+                nextRenewal.setFullYear(nextRenewal.getFullYear() + 1);
+              }
+            }
+          }
+          return nextRenewal;
+        } catch (error) {
+          console.error("Error parsing date:", sub.renewalDate, error);
+          return null;
+        }
+      })
+      .filter((date) => date !== null);
+
     const nextRenewalDate =
-      activeSubscriptions.length > 0
-        ? activeSubscriptions
-            .map((sub) => new Date(sub.renewalDate))
-            .sort((a, b) => a.getTime() - b.getTime())[0]
+      validDates.length > 0
+        ? validDates.sort((a, b) => a.getTime() - b.getTime())[0]
         : new Date();
 
     return {
-      amount: monthlyEquivalent,
+      amount: isNaN(totalAmount) ? 0 : totalAmount,
       nextRenewalDate,
     };
   }, [subscriptions]);
@@ -141,7 +276,10 @@ export default function App() {
               <Text className="home-balance-label">Balance</Text>
               <View className="home-balance-row">
                 <Text className="home-balance-amount">
-                  ${balanceData.amount.toFixed(2)}
+                  $
+                  {typeof balanceData.amount === "number"
+                    ? balanceData.amount.toFixed(2)
+                    : "0.00"}
                 </Text>
                 <Text className="home-balance-date">
                   {balanceData.nextRenewalDate.toLocaleDateString("en-US", {
@@ -210,7 +348,10 @@ export default function App() {
                           className="flex-1 text-xs"
                           style={{ color: "#435875" }}
                         >
-                          {item.currency} {item.price}
+                          {item.currency}{" "}
+                          {typeof item.price === "number"
+                            ? item.price.toFixed(2)
+                            : item.price}
                         </Text>
                         <Text
                           className="flex-1 text-xs font-semibold"

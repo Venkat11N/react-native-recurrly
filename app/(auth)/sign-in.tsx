@@ -1,9 +1,11 @@
+import { icons } from "@/constants/icons";
 import { validateEmail } from "@/lib/utils";
 import { useClerk, useSignIn } from "@clerk/expo";
 import { Link, useRouter } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import { useEffect, useState } from "react";
 import {
+    Image,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -122,9 +124,7 @@ export default function SignIn() {
             {/* Brand Section */}
             <View style={styles.brandSection}>
               <View style={styles.logoContainer}>
-                <View style={styles.logo}>
-                  <Text style={styles.logoText}>R</Text>
-                </View>
+                <Image source={icons.logo} style={styles.logoImage} />
                 <Text style={styles.brandName}>Recurrly</Text>
               </View>
               <Text style={styles.title}>Welcome back</Text>
@@ -235,6 +235,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#ea7a53",
     alignItems: "center",
     justifyContent: "center",
+  },
+  logoImage: {
+    width: 56,
+    height: 56,
+    borderRadius: 16,
   },
   logoText: {
     fontSize: 24,

@@ -1,10 +1,10 @@
 import { useAuth } from "@clerk/expo";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
-    createSubscription,
-    deleteSubscription,
-    getSubscriptions,
-    updateSubscription,
+  createSubscription,
+  deleteSubscription,
+  getSubscriptions,
+  updateSubscription,
 } from "../lib/apiClient";
 
 export interface Subscription {
@@ -60,6 +60,13 @@ export function SubscriptionsProvider({
   const [error, setError] = useState<string | null>(null);
   const { getToken } = useAuth();
 
+  const parsePrice = (price: any): number => {
+    if (typeof price === "number") return price;
+    if (!price) return 0;
+    const cleanStr = String(price).replace(/[^\d.-]/g, "");
+    return Number(cleanStr) || 0;
+  };
+
   const refreshSubscriptions = async () => {
     try {
       setLoading(true);
@@ -70,7 +77,12 @@ export function SubscriptionsProvider({
         return;
       }
       const data = await getSubscriptions(token);
-      setSubscriptions(data);
+      const parsedData = data.map((sub: any) => ({
+        ...sub,
+        price: parsePrice(sub.price),
+      }));
+      console.log("Subscriptions refreshed:", parsedData);
+      setSubscriptions(parsedData);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to fetch subscriptions",
@@ -88,20 +100,23 @@ export function SubscriptionsProvider({
     >,
   ) => {
     try {
+      console.log("Adding subscription:", subscription);
       const token = await getToken();
       if (!token) {
         setError("Not authenticated");
         throw new Error("Not authenticated");
       }
       const newSubscription = await createSubscription(token, subscription);
-      setSubscriptions((prev) => {
-        return [newSubscription, ...prev];
-      });
-      // Don't call refreshSubscriptions here since we already updated local state
+      console.log("Subscription created successfully:", newSubscription);
+
+      // Force a fresh sync to ensure state perfectly matches the database
+      await refreshSubscriptions();
+      console.log("Refresh completed after adding subscription");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to create subscription",
       );
+      console.error("Error adding subscription:", err);
       throw err;
     }
   };
@@ -116,10 +131,9 @@ export function SubscriptionsProvider({
         setError("Not authenticated");
         throw new Error("Not authenticated");
       }
-      const updatedSubscription = await updateSubscription(token, id, data);
-      setSubscriptions((prev) => {
-        return prev.map((sub) => (sub.id === id ? updatedSubscription : sub));
-      });
+      await updateSubscription(token, id, data);
+
+      await refreshSubscriptions();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to update subscription",
@@ -136,7 +150,7 @@ export function SubscriptionsProvider({
         throw new Error("Not authenticated");
       }
       await deleteSubscription(token, id);
-      setSubscriptions((prev) => prev.filter((sub) => sub.id !== id));
+      await refreshSubscriptions();
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to delete subscription",
